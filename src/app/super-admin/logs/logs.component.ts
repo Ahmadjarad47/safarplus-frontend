@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminLogEntry, AdminLogLevel, AdminLogsService, AdminLogSummary } from '../services/admin-logs.service';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-logs',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent],
   templateUrl: './logs.component.html'
 })

@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
+import { getApiErrorMessage as apiErrorMessage } from '../../core/http/api-error';
 
 export interface ComplaintUserApi {
   id?: number;
@@ -50,7 +51,7 @@ export class ComplaintsAdminService {
 
   async fetchComplaints(): Promise<ComplaintListItem[]> {
     const raw = await firstValueFrom(
-      this.http.get<unknown>(this.complaintsPath, this.getRequestOptions())
+      this.http.get<unknown>(this.complaintsPath)
     );
     const rows = this.extractComplaintRows(raw);
     return rows.map((r) => this.mapBackendToComplaint(r));
@@ -59,8 +60,7 @@ export class ComplaintsAdminService {
   async deleteComplaint(id: string | number): Promise<void> {
     await firstValueFrom(
       this.http.delete<unknown>(
-        `${this.complaintsPath}/${id}`,
-        this.getRequestOptions()
+        `${this.complaintsPath}/${id}`
       )
     );
   }
@@ -69,8 +69,7 @@ export class ComplaintsAdminService {
     await firstValueFrom(
       this.http.post<unknown>(
         `${this.complaintsPath}/${id}/close`,
-        {},
-        this.getRequestOptions()
+        {}
       )
     );
   }
@@ -79,8 +78,7 @@ export class ComplaintsAdminService {
     await firstValueFrom(
       this.http.post<unknown>(
         `${this.complaintsPath}/${id}/respond`,
-        { response },
-        this.getRequestOptions()
+        { response }
       )
     );
   }
@@ -140,40 +138,7 @@ export class ComplaintsAdminService {
     return `${day}-${month}-${year}`;
   }
 
-  private getRequestOptions() {
-    return {
-      headers: this.getAuthHeaders()
-    };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token =
-      localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({
-      Accept: 'application/json'
-    });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
-
   getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
+    return apiErrorMessage(error, fallback);
   }
 }

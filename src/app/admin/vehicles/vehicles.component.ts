@@ -1,11 +1,13 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
+import { getApiErrorMessage } from '../../core/http/api-error';
+import { createPager } from '../../shared/utils/pager';
 
 interface Vehicle {
   id: string;
@@ -32,8 +34,8 @@ interface BackendVehicle {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-vehicles',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './vehicles.component.html',
   styleUrl: './vehicles.component.css'
@@ -43,8 +45,7 @@ export class VehiclesComponent implements OnInit {
   private readonly apiBaseUrl = resolveApiV1BaseUrl();
 
   searchQuery = signal<string>('');
-  currentPage = signal<number>(1);
-  itemsPerPage = 5;
+  readonly itemsPerPage = 5;
   showModal = signal<boolean>(false);
   showEditModal = signal<boolean>(false);
   showDeleteModal = signal<boolean>(false);
@@ -75,24 +76,14 @@ export class VehiclesComponent implements OnInit {
     );
   });
 
-  totalPages = computed(() => {
-    return Math.max(1, Math.ceil(this.filteredVehicles().length / this.itemsPerPage));
-  });
+  private readonly pager = createPager(this.filteredVehicles, this.itemsPerPage);
+  readonly currentPage = this.pager.currentPage;
+  readonly totalPages = this.pager.totalPages;
+  readonly paginatedVehicles = this.pager.pageItems;
+  readonly displayedRange = this.pager.range;
 
-  paginatedVehicles = computed(() => {
-    const start = (this.currentPage() - 1) * this.itemsPerPage;
-    const end = start + this.itemsPerPage;
-    return this.filteredVehicles().slice(start, end);
-  });
 
-  displayedRange = computed(() => {
-    if (this.filteredVehicles().length === 0) {
-      return { start: 0, end: 0, total: 0 };
-    }
-    const start = (this.currentPage() - 1) * this.itemsPerPage + 1;
-    const end = Math.min(this.currentPage() * this.itemsPerPage, this.filteredVehicles().length);
-    return { start, end, total: this.filteredVehicles().length };
-  });
+
 
   ngOnInit(): void {
     void this.loadVehicles();
@@ -104,13 +95,13 @@ export class VehiclesComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(
-        this.http.get<unknown>(`${this.apiBaseUrl}/transport/buses`, this.getRequestOptions())
+        this.http.get<unknown>(`${this.apiBaseUrl}/transport/buses`)
       );
       const backendVehicles = this.extractVehicles(response);
       this.vehicles.set(backendVehicles.map((vehicle) => this.mapBackendVehicleToUiVehicle(vehicle)));
-      this.currentPage.set(1);
+      this.pager.reset();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل تحميل بيانات المركبات من الخادم.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل تحميل بيانات المركبات من الخادم.'));
     } finally {
       this.isLoading.set(false);
     }
@@ -141,19 +132,15 @@ export class VehiclesComponent implements OnInit {
   onSearch(event: Event) {
     const target = event.target as HTMLInputElement;
     this.searchQuery.set(target.value);
-    this.currentPage.set(1);
+    this.pager.reset();
   }
 
   nextPage() {
-    if (this.currentPage() < this.totalPages()) {
-      this.currentPage.update(page => page + 1);
-    }
+    this.pager.next();
   }
 
   previousPage() {
-    if (this.currentPage() > 1) {
-      this.currentPage.update(page => page - 1);
-    }
+    this.pager.previous();
   }
 
   openModal() {
@@ -231,14 +218,13 @@ export class VehiclesComponent implements OnInit {
       await firstValueFrom(
         this.http.post(
           `${this.apiBaseUrl}/transport/buses`,
-          this.buildVehiclePayload(),
-          this.getRequestOptions()
+          this.buildVehiclePayload()
         )
       );
       this.closeModal();
       await this.loadVehicles();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل إضافة المركبة.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل إضافة المركبة.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -257,14 +243,13 @@ export class VehiclesComponent implements OnInit {
       await firstValueFrom(
         this.http.post(
           `${this.apiBaseUrl}/transport/buses/${vehicle.id}`,
-          this.buildVehiclePayload(),
-          this.getRequestOptions()
+          this.buildVehiclePayload()
         )
       );
       this.closeEditModal();
       await this.loadVehicles();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل تعديل بيانات المركبة.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل تعديل بيانات المركبة.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -285,12 +270,12 @@ export class VehiclesComponent implements OnInit {
 
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiBaseUrl}/transport/buses/${vehicle.id}`, this.getRequestOptions())
+        this.http.delete(`${this.apiBaseUrl}/transport/buses/${vehicle.id}`)
       );
       this.closeDeleteModal();
       await this.loadVehicles();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل حذف المركبة.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل حذف المركبة.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -371,42 +356,6 @@ export class VehiclesComponent implements OnInit {
     }
 
     return 'available';
-  }
-
-  private getRequestOptions() {
-    return {
-      headers: this.getAuthHeaders()
-    };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({
-      Accept: 'application/json'
-    });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
-
-  private getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
   }
 
   // Expose Math for template

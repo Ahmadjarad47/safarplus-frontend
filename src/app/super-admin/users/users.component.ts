@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AdminUser,
@@ -11,8 +11,8 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-users',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './users.component.html'
 })

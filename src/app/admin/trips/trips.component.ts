@@ -1,11 +1,13 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
+import { getApiErrorMessage } from '../../core/http/api-error';
+import { createPager } from '../../shared/utils/pager';
 
 interface Trip {
   id: string;
@@ -42,8 +44,8 @@ interface BackendTrip {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-trips',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './trips.component.html',
   styleUrl: './trips.component.css'
@@ -53,8 +55,7 @@ export class TripsComponent implements OnInit {
   private readonly apiBaseUrl = resolveApiV1BaseUrl();
 
   searchQuery = signal<string>('');
-  currentPage = signal<number>(1);
-  itemsPerPage = 5;
+  readonly itemsPerPage = 5;
 
   isLoading = signal<boolean>(false);
   isSubmitting = signal<boolean>(false);
@@ -97,25 +98,14 @@ export class TripsComponent implements OnInit {
     );
   });
 
-  paginatedTrips = computed(() => {
-    const start = (this.currentPage() - 1) * this.itemsPerPage;
-    const end = start + this.itemsPerPage;
-    return this.filteredTrips().slice(start, end);
-  });
+  private readonly pager = createPager(this.filteredTrips, this.itemsPerPage);
+  readonly currentPage = this.pager.currentPage;
+  readonly totalPages = this.pager.totalPages;
+  readonly paginatedTrips = this.pager.pageItems;
+  readonly displayedRange = this.pager.range;
 
-  totalPages = computed(() => {
-    return Math.max(1, Math.ceil(this.filteredTrips().length / this.itemsPerPage));
-  });
 
-  displayedRange = computed(() => {
-    if (this.filteredTrips().length === 0) {
-      return { start: 0, end: 0, total: 0 };
-    }
 
-    const start = (this.currentPage() - 1) * this.itemsPerPage + 1;
-    const end = Math.min(this.currentPage() * this.itemsPerPage, this.filteredTrips().length);
-    return { start, end, total: this.filteredTrips().length };
-  });
 
   async loadTrips() {
     this.isLoading.set(true);
@@ -123,14 +113,14 @@ export class TripsComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(
-        this.http.get<unknown>(`${this.apiBaseUrl}/trips`, this.getRequestOptions())
+        this.http.get<unknown>(`${this.apiBaseUrl}/trips`)
       );
 
       const backendTrips = this.extractTrips(response);
       this.trips.set(backendTrips.map((trip) => this.mapBackendTripToUiTrip(trip)));
-      this.currentPage.set(1);
+      this.pager.reset();
     } catch (error) {
-      this.errorMessage.set(this.getApiErrorMessage(error, 'فشل تحميل الرحلات من الخادم.'));
+      this.errorMessage.set(getApiErrorMessage(error, 'فشل تحميل الرحلات من الخادم.'));
     } finally {
       this.isLoading.set(false);
     }
@@ -139,19 +129,15 @@ export class TripsComponent implements OnInit {
   onSearch(event: Event) {
     const target = event.target as HTMLInputElement;
     this.searchQuery.set(target.value);
-    this.currentPage.set(1);
+    this.pager.reset();
   }
 
   nextPage() {
-    if (this.currentPage() < this.totalPages()) {
-      this.currentPage.set(this.currentPage() + 1);
-    }
+    this.pager.next();
   }
 
   previousPage() {
-    if (this.currentPage() > 1) {
-      this.currentPage.set(this.currentPage() - 1);
-    }
+    this.pager.previous();
   }
 
   editTrip(trip: Trip) {
@@ -195,12 +181,12 @@ export class TripsComponent implements OnInit {
 
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiBaseUrl}/transport/trips/${trip.id}`, this.getRequestOptions())
+        this.http.delete(`${this.apiBaseUrl}/transport/trips/${trip.id}`)
       );
       this.trips.update((trips) => trips.filter((t) => t.id !== trip.id));
       this.closeDeleteModal();
     } catch (error) {
-      this.errorMessage.set(this.getApiErrorMessage(error, 'فشل حذف الرحلة.'));
+      this.errorMessage.set(getApiErrorMessage(error, 'فشل حذف الرحلة.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -294,12 +280,12 @@ export class TripsComponent implements OnInit {
     try {
       const payload = this.buildTripPayload();
       await firstValueFrom(
-        this.http.post(`${this.apiBaseUrl}/transport/trips`, payload, this.getRequestOptions())
+        this.http.post(`${this.apiBaseUrl}/transport/trips`, payload)
       );
       this.closeModal();
       await this.loadTrips();
     } catch (error) {
-      this.errorMessage.set(this.getApiErrorMessage(error, 'فشل إضافة الرحلة.'));
+      this.errorMessage.set(getApiErrorMessage(error, 'فشل إضافة الرحلة.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -317,12 +303,12 @@ export class TripsComponent implements OnInit {
     try {
       const payload = this.buildTripPayload();
       await firstValueFrom(
-        this.http.post(`${this.apiBaseUrl}/transport/trips/${trip.id}`, payload, this.getRequestOptions())
+        this.http.post(`${this.apiBaseUrl}/transport/trips/${trip.id}`, payload)
       );
       this.closeEditModal();
       await this.loadTrips();
     } catch (error) {
-      this.errorMessage.set(this.getApiErrorMessage(error, 'فشل تعديل الرحلة.'));
+      this.errorMessage.set(getApiErrorMessage(error, 'فشل تعديل الرحلة.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -334,25 +320,6 @@ export class TripsComponent implements OnInit {
 
   canDelete(trip: Trip): boolean {
     return trip.status !== 'confirmed';
-  }
-
-  private getRequestOptions() {
-    return {
-      headers: this.getAuthHeaders()
-    };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({
-      Accept: 'application/json'
-    });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
   }
 
   private extractTrips(response: unknown): BackendTrip[] {
@@ -501,20 +468,4 @@ export class TripsComponent implements OnInit {
     return index >= 0 ? index + 1 : 1;
   }
 
-  private getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
-  }
 }

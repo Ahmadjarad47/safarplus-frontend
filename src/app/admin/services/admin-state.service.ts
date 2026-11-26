@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 
@@ -181,9 +181,7 @@ export class AdminStateService {
               total_amount?: number | string;
             }>;
           };
-        }>(`${this.apiBaseUrl}/dashboard/transport-summary`, {
-          headers: this.getAuthHeaders()
-        })
+        }>(`${this.apiBaseUrl}/dashboard/transport-summary`)
       );
 
       const summary = response.data?.summary;
@@ -288,17 +286,6 @@ export class AdminStateService {
       booking.trip.plan.toLowerCase().includes(term) ||
       booking.trip.busNumber.toLowerCase().includes(term)
     );
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
   }
 
   private normalizeBookingStatus(status?: string): Booking['status'] {

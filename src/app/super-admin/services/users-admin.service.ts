@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
+import { getApiErrorMessage as apiErrorMessage } from '../../core/http/api-error';
 
 export type AdminUserStatus = 'active' | 'blocked';
 
@@ -58,7 +59,7 @@ export class UsersAdminService {
 
   async fetchUsers(): Promise<AdminUser[]> {
     const raw = await firstValueFrom(
-      this.http.get<unknown>(this.usersPath, this.getRequestOptions())
+      this.http.get<unknown>(this.usersPath)
     );
 
     return this.extractUsers(raw).map((user) => this.mapBackendUser(user));
@@ -66,7 +67,7 @@ export class UsersAdminService {
 
   async createUser(payload: AdminUserPayload): Promise<AdminUser | null> {
     const raw = await firstValueFrom(
-      this.http.post<unknown>(this.usersPath, payload, this.getRequestOptions())
+      this.http.post<unknown>(this.usersPath, payload)
     );
 
     return this.extractUser(raw);
@@ -74,7 +75,7 @@ export class UsersAdminService {
 
   async updateUser(id: string, payload: AdminUserPayload): Promise<AdminUser | null> {
     const raw = await firstValueFrom(
-      this.http.post<unknown>(`${this.usersPath}/${id}`, payload, this.getRequestOptions())
+      this.http.post<unknown>(`${this.usersPath}/${id}`, payload)
     );
 
     return this.extractUser(raw);
@@ -82,7 +83,7 @@ export class UsersAdminService {
 
   async setUserStatus(id: string, status: AdminUserStatus): Promise<AdminUser | null> {
     const raw = await firstValueFrom(
-      this.http.post<unknown>(`${this.usersPath}/${id}/status`, { status }, this.getRequestOptions())
+      this.http.post<unknown>(`${this.usersPath}/${id}/status`, { status })
     );
 
     return this.extractUser(raw);
@@ -90,7 +91,7 @@ export class UsersAdminService {
 
   async deleteUser(id: string): Promise<void> {
     await firstValueFrom(
-      this.http.delete<unknown>(`${this.usersPath}/${id}`, this.getRequestOptions())
+      this.http.delete<unknown>(`${this.usersPath}/${id}`)
     );
   }
 
@@ -115,20 +116,7 @@ export class UsersAdminService {
   }
 
   getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من جلسة تسجيل الدخول.';
-    }
-
-    return fallback;
+    return apiErrorMessage(error, fallback);
   }
 
   private extractUsers(response: unknown): BackendUserRaw[] {
@@ -209,18 +197,4 @@ export class UsersAdminService {
     }).format(date);
   }
 
-  private getRequestOptions() {
-    return { headers: this.getAuthHeaders() };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
 }

@@ -1,4 +1,4 @@
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { Component, computed, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SuperAdminStateService } from '../services/super-admin-state.service';
@@ -6,8 +6,8 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
 import { StatCardComponent } from '../../shared/ui/stat-card/stat-card.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-super-admin-dashboard',
-  standalone: true,
   imports: [CommonModule, RouterModule, PageHeaderComponent, StatCardComponent],
   templateUrl: './super-admin-dashboard.component.html',
   styleUrl: './super-admin-dashboard.component.css'

@@ -41,3 +41,12 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Backend is a separate git repo
+/safarplus.net/
+
+# Logs and env files
+*.log
+.env
+.env.*
+!.env.example

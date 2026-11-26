@@ -3,8 +3,7 @@ import {
   computed,
   inject,
   OnInit,
-  signal
-} from '@angular/core';
+  signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -15,8 +14,8 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-complaints',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './complaints.component.html',
   styleUrl: './complaints.component.css'

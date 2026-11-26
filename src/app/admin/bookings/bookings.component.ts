@@ -1,12 +1,13 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { AdminStateService, Booking } from '../services/admin-state.service';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
+import { getApiErrorMessage } from '../../core/http/api-error';
 
 interface ApiBookingTrip {
   from_location?: string;
@@ -41,8 +42,8 @@ interface ApiBooking {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-bookings',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './bookings.component.html',
   styleUrl: './bookings.component.css'
@@ -179,15 +180,14 @@ export class BookingsComponent implements OnInit {
     try {
       const response = await firstValueFrom(
         this.http.get<{ data?: { bookings?: ApiBooking[] } }>(
-          `${this.apiBaseUrl}/transport/bookings`,
-          this.getRequestOptions()
+          `${this.apiBaseUrl}/transport/bookings`
         )
       );
       const rows = response.data?.bookings ?? [];
       const mapped = rows.map((row) => this.mapApiBookingToBooking(row));
       this.stateService.setBookings(mapped);
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل تحميل الحجوزات من الخادم.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل تحميل الحجوزات من الخادم.'));
       this.stateService.setBookings([]);
     } finally {
       this.isLoading.set(false);
@@ -272,16 +272,14 @@ export class BookingsComponent implements OnInit {
         await firstValueFrom(
           this.http.post(
             `${this.apiBaseUrl}/transport/bookings/${this.editingBooking.id}`,
-            payload,
-            this.getRequestOptions()
+            payload
           )
         );
       } else {
         await firstValueFrom(
           this.http.post(
             `${this.apiBaseUrl}/transport/bookings`,
-            payload,
-            this.getRequestOptions()
+            payload
           )
         );
       }
@@ -289,7 +287,7 @@ export class BookingsComponent implements OnInit {
       await this.loadBookings();
       this.cancelEdit();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل حفظ الحجز.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل حفظ الحجز.'));
     }
   }
 
@@ -400,7 +398,7 @@ export class BookingsComponent implements OnInit {
   private async deleteBookingFromApi(id: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiBaseUrl}/transport/bookings/${id}`, this.getRequestOptions())
+        this.http.delete(`${this.apiBaseUrl}/transport/bookings/${id}`)
       );
       await this.loadBookings();
 
@@ -409,7 +407,7 @@ export class BookingsComponent implements OnInit {
         this.showDetailsModal.set(false);
       }
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل حذف الحجز.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل حذف الحجز.'));
     }
   }
 
@@ -487,42 +485,6 @@ export class BookingsComponent implements OnInit {
     }
 
     return `${match[1].padStart(2, '0')}:${match[2]}`;
-  }
-
-  private getRequestOptions() {
-    return {
-      headers: this.getAuthHeaders()
-    };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({
-      Accept: 'application/json'
-    });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
-
-  private getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
   }
 
   Math = Math;

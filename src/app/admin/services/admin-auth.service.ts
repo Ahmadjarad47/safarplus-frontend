@@ -1,4 +1,6 @@
-import { Injectable } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { inject, Injectable, PLATFORM_ID } from '@angular/core';
+import { isJwtExpired } from '../../core/auth/jwt';
 
 const TOKEN_KEY = 'admin_token';
 const USER_KEY = 'admin_user';
@@ -26,8 +28,22 @@ export interface AuthenticatedAdminUser {
 
 @Injectable({ providedIn: 'root' })
 export class AdminAuthService {
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  /** Returns the stored token, or null when missing or (for JWTs) expired. */
   getToken(): string | null {
-    return this.getStoredItem(TOKEN_KEY);
+    const token = this.getStoredItem(TOKEN_KEY);
+
+    if (!token) {
+      return null;
+    }
+
+    if (isJwtExpired(token)) {
+      this.clearSession();
+      return null;
+    }
+
+    return token;
   }
 
   setSession(token: string, userJson?: string): void {
@@ -128,7 +144,7 @@ export class AdminAuthService {
   }
 
   private getStorage(storageName: 'localStorage' | 'sessionStorage'): Storage | null {
-    if (typeof window === 'undefined') {
+    if (!this.isBrowser) {
       return null;
     }
 

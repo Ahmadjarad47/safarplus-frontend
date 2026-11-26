@@ -1,4 +1,4 @@
-import { Component, computed, OnInit } from '@angular/core';
+import { Component, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AdminStateService } from '../services/admin-state.service';
@@ -6,8 +6,8 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
 import { StatCardComponent } from '../../shared/ui/stat-card/stat-card.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-admin-home',
-  standalone: true,
   imports: [CommonModule, RouterModule, PageHeaderComponent, StatCardComponent],
   templateUrl: './admin-home.component.html',
   styleUrl: './admin-home.component.css'

@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type { Company, CompanyDocument } from './super-admin-state.service';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
+import { getApiErrorMessage as apiErrorMessage } from '../../core/http/api-error';
 
 interface BackendTransportCompanyRaw {
   id?: number | string;
@@ -42,7 +43,7 @@ export class TransportCompaniesAdminService {
 
   async fetchCompanies(): Promise<Company[]> {
     const raw = await firstValueFrom(
-      this.http.get<unknown>(this.companiesPath, this.getRequestOptions())
+      this.http.get<unknown>(this.companiesPath)
     );
     const list = this.extractCompanies(raw);
     return list.map((c) => this.mapBackendToCompany(c));
@@ -52,8 +53,7 @@ export class TransportCompaniesAdminService {
     await firstValueFrom(
       this.http.post<unknown>(
         `${this.companiesPath}/${id}`,
-        body,
-        this.getRequestOptions()
+        body
       )
     );
   }
@@ -62,8 +62,7 @@ export class TransportCompaniesAdminService {
     await firstValueFrom(
       this.http.post<unknown>(
         `${this.companiesPath}/${id}/approve`,
-        {},
-        this.getRequestOptions()
+        {}
       )
     );
   }
@@ -72,15 +71,14 @@ export class TransportCompaniesAdminService {
     await firstValueFrom(
       this.http.post<unknown>(
         `${this.companiesPath}/${id}/reject`,
-        {},
-        this.getRequestOptions()
+        {}
       )
     );
   }
 
   async deleteCompany(id: string | number): Promise<void> {
     await firstValueFrom(
-      this.http.delete<unknown>(`${this.companiesPath}/${id}`, this.getRequestOptions())
+      this.http.delete<unknown>(`${this.companiesPath}/${id}`)
     );
   }
 
@@ -181,40 +179,7 @@ export class TransportCompaniesAdminService {
     return `${day}-${month}-${year}`;
   }
 
-  private getRequestOptions() {
-    return {
-      headers: this.getAuthHeaders()
-    };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token =
-      localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({
-      Accept: 'application/json'
-    });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
-
   getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
+    return apiErrorMessage(error, fallback);
   }
 }

@@ -1,24 +1,20 @@
-import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { isPlatformBrowser } from '@angular/common';
+import { CanMatchFn, Router } from '@angular/router';
 import { AdminAuthService } from '../services/admin-auth.service';
 
-export const superAdminAuthGuard: CanActivateFn = () => {
-  const platformId = inject(PLATFORM_ID);
-  const router = inject(Router);
-  const auth = inject(AdminAuthService);
-
-  if (!isPlatformBrowser(platformId)) {
+/** Super-admin area; see `adminAuthGuard` for why this is a `canMatch` guard. */
+export const superAdminAuthGuard: CanMatchFn = () => {
+  if (!isPlatformBrowser(inject(PLATFORM_ID))) {
     return true;
   }
+
+  const router = inject(Router);
+  const auth = inject(AdminAuthService);
 
   if (!auth.isAuthenticated()) {
     return router.createUrlTree(['/admin/login']);
   }
 
-  if (auth.isSuperAdmin()) {
-    return true;
-  }
-
-  return router.createUrlTree(['/admin/dashboard']);
+  return auth.isSuperAdmin() ? true : router.createUrlTree(['/admin/dashboard']);
 };

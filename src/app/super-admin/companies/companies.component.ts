@@ -3,9 +3,9 @@ import {
   computed,
   inject,
   OnInit,
-  signal
-} from '@angular/core';
+  signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { openExternalUrl } from '../../shared/utils/safe-url';
 import { FormsModule } from '@angular/forms';
 import { Company, CompanyDocument } from '../services/super-admin-state.service';
 import { TransportCompaniesAdminService } from '../services/transport-companies-admin.service';
@@ -14,8 +14,8 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-companies',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './companies.component.html',
   styleUrl: './companies.component.css'
@@ -279,7 +279,7 @@ export class CompaniesComponent implements OnInit {
   viewDocument(doc: CompanyDocument) {
     const url = doc.fileUrl;
     if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      openExternalUrl(url);
     }
   }
 

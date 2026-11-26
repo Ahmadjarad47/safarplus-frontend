@@ -11,7 +11,7 @@ export const routes: Routes = [
   {
     path: 'admin',
     loadComponent: () => import('./admin/admin-layout/admin-layout.component').then(m => m.AdminLayoutComponent),
-    canActivate: [adminAuthGuard],
+    canMatch: [adminAuthGuard],
     children: [
       {
         path: '',
@@ -51,7 +51,7 @@ export const routes: Routes = [
   {
     path: 'super-admin',
     loadComponent: () => import('./super-admin/super-admin-layout/super-admin-layout.component').then(m => m.SuperAdminLayoutComponent),
-    canActivate: [superAdminAuthGuard],
+    canMatch: [superAdminAuthGuard],
     children: [
       {
         path: '',

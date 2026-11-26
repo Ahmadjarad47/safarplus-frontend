@@ -1,11 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
+import { getApiErrorMessage } from '../../core/http/api-error';
 
 export interface CompanySettings {
   id: string;
@@ -45,8 +46,8 @@ interface SettingsResponse {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-settings',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css'
@@ -94,9 +95,7 @@ export class SettingsComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(
-        this.http.get<SettingsResponse>(`${this.apiBaseUrl}/admin/company-settings`, {
-          headers: this.getAuthHeaders()
-        })
+        this.http.get<SettingsResponse>(`${this.apiBaseUrl}/admin/company-settings`)
       );
 
       const company = response.data?.company;
@@ -123,7 +122,7 @@ export class SettingsComponent implements OnInit {
         }))
       );
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'تعذر تحميل إعدادات الشركة.'));
+      this.apiError.set(getApiErrorMessage(error, 'تعذر تحميل إعدادات الشركة.'));
     } finally {
       this.isLoading.set(false);
     }
@@ -159,8 +158,7 @@ export class SettingsComponent implements OnInit {
             address: this.formData.companyAddress.trim(),
             email: this.formData.email.trim(),
             phone: this.formData.phoneNumber.trim()
-          },
-          { headers: this.getAuthHeaders() }
+          }
         )
       );
 
@@ -178,7 +176,7 @@ export class SettingsComponent implements OnInit {
       this.isEditMode.set(false);
       this.successMessage.set('تم حفظ الإعدادات بنجاح');
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'تعذر حفظ إعدادات الشركة.'));
+      this.apiError.set(getApiErrorMessage(error, 'تعذر حفظ إعدادات الشركة.'));
     } finally {
       this.isSaving.set(false);
     }
@@ -232,16 +230,14 @@ export class SettingsComponent implements OnInit {
       formData.append('title', this.selectedFile.name.replace(/\.[^.]+$/, ''));
 
       await firstValueFrom(
-        this.http.post(`${this.apiBaseUrl}/admin/company-files`, formData, {
-          headers: this.getAuthHeaders()
-        })
+        this.http.post(`${this.apiBaseUrl}/admin/company-files`, formData)
       );
 
       this.selectedFile = null;
       this.successMessage.set('تم رفع الملف بنجاح');
       await this.loadSettings();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'تعذر رفع الملف.'));
+      this.apiError.set(getApiErrorMessage(error, 'تعذر رفع الملف.'));
     } finally {
       this.isUploading.set(false);
     }
@@ -265,14 +261,12 @@ export class SettingsComponent implements OnInit {
 
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiBaseUrl}/admin/company-files/${fileId}`, {
-          headers: this.getAuthHeaders()
-        })
+        this.http.delete(`${this.apiBaseUrl}/admin/company-files/${fileId}`)
       );
       this.successMessage.set('تم حذف الملف بنجاح');
       await this.loadSettings();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'تعذر حذف الملف.'));
+      this.apiError.set(getApiErrorMessage(error, 'تعذر حذف الملف.'));
     }
   }
 
@@ -290,46 +284,12 @@ export class SettingsComponent implements OnInit {
     return dateString;
   }
 
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
-
-  private getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    const validationErrors = error.error?.errors;
-    if (validationErrors && typeof validationErrors === 'object') {
-      const messages = Object.values(validationErrors as Record<string, unknown>)
-        .flatMap((value) => Array.isArray(value) ? value.map(String) : [String(value)]);
-      if (messages.length > 0) {
-        return messages.join(' ');
-      }
-    }
-
-    return fallback;
-  }
-
   private async openProtectedFile(url: string, download: boolean, fileName?: string): Promise<void> {
     this.apiError.set('');
 
     try {
       const blob = await firstValueFrom(
         this.http.get(url, {
-          headers: this.getAuthHeaders(),
           responseType: 'blob'
         })
       );
@@ -349,7 +309,7 @@ export class SettingsComponent implements OnInit {
 
       setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'تعذر فتح الملف.'));
+      this.apiError.set(getApiErrorMessage(error, 'تعذر فتح الملف.'));
     }
   }
 }

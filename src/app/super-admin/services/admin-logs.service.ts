@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
+import { getApiErrorMessage as apiErrorMessage } from '../../core/http/api-error';
 
 export type AdminLogLevel =
   | 'emergency'
@@ -69,7 +70,6 @@ export class AdminLogsService {
 
     const response = await firstValueFrom(
       this.http.get<BackendLogResponse>(`${this.apiBaseUrl}/admin/logs`, {
-        headers: this.getAuthHeaders(),
         params: httpParams,
       })
     );
@@ -127,20 +127,7 @@ export class AdminLogsService {
   }
 
   getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك بقراءة السجلات.';
-    }
-
-    return fallback;
+    return apiErrorMessage(error, fallback);
   }
 
   private mapEntry(entry: BackendLogEntry, index: number): AdminLogEntry {
@@ -196,12 +183,4 @@ export class AdminLogsService {
     return 'info';
   }
 
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-    return headers;
-  }
 }

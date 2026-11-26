@@ -1,10 +1,10 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 
 export type StatCardTone = 'primary' | 'info' | 'warning' | 'neutral';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stat-card',
-  standalone: true,
   templateUrl: './stat-card.component.html',
   styleUrl: './stat-card.component.css'
 })

@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { AdminAuthService } from '../../admin/services/admin-auth.service';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 
@@ -40,13 +41,14 @@ interface HealthCheck {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-control-center',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent],
   templateUrl: './control-center.component.html'
 })
 export class ControlCenterComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly auth = inject(AdminAuthService);
   private readonly apiBaseUrl = resolveApiV1BaseUrl();
 
   readonly activeTab = signal<ControlTab>('packages');
@@ -98,7 +100,7 @@ export class ControlCenterComponent implements OnInit {
     this.isLoading.set(true);
     this.error.set('');
     try {
-      const raw = await firstValueFrom(this.http.get<unknown>(`${this.apiBaseUrl}/packages`, this.options()));
+      const raw = await firstValueFrom(this.http.get<unknown>(`${this.apiBaseUrl}/packages`));
       const rows = Array.isArray(raw) ? raw : [];
       this.packages.set(rows.map((row) => this.mapPackage(row as Record<string, unknown>)));
       if (this.packages().length === 0) this.applyMockPackages();
@@ -130,10 +132,10 @@ export class ControlCenterComponent implements OnInit {
       if (this.usingMockData()) {
         this.saveMockPackage();
       } else if (this.packageForm.id) {
-        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/packages/${this.packageForm.id}`, payload, this.options()));
+        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/packages/${this.packageForm.id}`, payload));
         await this.loadPackages();
       } else {
-        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/packages`, payload, this.options()));
+        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/packages`, payload));
         await this.loadPackages();
       }
       this.notice.set('تم حفظ الباقة بنجاح.');
@@ -151,7 +153,7 @@ export class ControlCenterComponent implements OnInit {
       this.packages.update((rows) => rows.filter((row) => row.id !== id));
       return;
     }
-    await firstValueFrom(this.http.delete(`${this.apiBaseUrl}/packages/${id}`, this.options()));
+    await firstValueFrom(this.http.delete(`${this.apiBaseUrl}/packages/${id}`));
     await this.loadPackages();
   }
 
@@ -160,8 +162,8 @@ export class ControlCenterComponent implements OnInit {
     this.error.set('');
     try {
       const [points, profits] = await Promise.all([
-        firstValueFrom(this.http.get<unknown>(`${this.apiBaseUrl}/ticket-points`, this.options())),
-        firstValueFrom(this.http.get<unknown>(`${this.apiBaseUrl}/ticket-profits`, this.options())),
+        firstValueFrom(this.http.get<unknown>(`${this.apiBaseUrl}/ticket-points`)),
+        firstValueFrom(this.http.get<unknown>(`${this.apiBaseUrl}/ticket-profits`)),
       ]);
       this.pointRules.set((Array.isArray(points) ? points : []).map((row) => this.mapRule(row as Record<string, unknown>, 'points')));
       this.profitRules.set((Array.isArray(profits) ? profits : []).map((row) => this.mapRule(row as Record<string, unknown>, 'profits')));
@@ -191,10 +193,10 @@ export class ControlCenterComponent implements OnInit {
       if (this.usingMockData()) {
         this.saveMockRule(type, form);
       } else if (form.id) {
-        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/${endpoint}/${form.id}`, payload, this.options()));
+        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/${endpoint}/${form.id}`, payload));
         await this.loadRules();
       } else {
-        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/${endpoint}`, payload, this.options()));
+        await firstValueFrom(this.http.post(`${this.apiBaseUrl}/${endpoint}`, payload));
         await this.loadRules();
       }
       this.notice.set('تم حفظ القاعدة بنجاح.');
@@ -230,7 +232,7 @@ export class ControlCenterComponent implements OnInit {
     }
 
     try {
-      await firstValueFrom(this.http.post(`${this.apiBaseUrl}/notifications/send`, payload, this.options()));
+      await firstValueFrom(this.http.post(`${this.apiBaseUrl}/notifications/send`, payload));
       this.notice.set('تم إرسال الإشعار بنجاح.');
     } catch {
       this.error.set('تعذر إرسال الإشعار فعليا، لكن النموذج جاهز ومربوط بالواجهة.');
@@ -323,18 +325,7 @@ export class ControlCenterComponent implements OnInit {
     this.usingMockData.set(true);
   }
 
-  private options() {
-    return { headers: this.headers() };
-  }
-
-  private headers(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
-    return headers;
-  }
-
   private hasToken(): boolean {
-    return !!(localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token'));
+    return !!this.auth.getToken();
   }
 }

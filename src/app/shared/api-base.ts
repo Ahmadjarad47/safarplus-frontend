@@ -1,18 +1,17 @@
+import { environment } from '../../environments/environment';
+
+const API_BASE_URL = environment.apiBaseUrl.replace(/\/+$/, '');
+
+/** Configured API v1 base URL (see `src/environments`). */
 export function resolveApiV1BaseUrl(): string {
-  if (typeof window !== 'undefined') {
-    const { protocol, hostname } = window.location;
+  return API_BASE_URL;
+}
 
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:8000/api/v1';
-    }
-
-    const apiHostname =
-      hostname === 'safarplus.net' || hostname === 'www.safarplus.net'
-        ? 'api.safarplus.net'
-        : hostname;
-
-    return `${protocol}//${apiHostname}/api/v1`;
+/** Origin (scheme + host + port) of the configured API. */
+export function resolveApiOrigin(): string {
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    return '';
   }
-
-  return 'http://127.0.0.1:8000/api/v1';
 }

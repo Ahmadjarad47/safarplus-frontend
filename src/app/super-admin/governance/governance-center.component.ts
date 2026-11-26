@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { Component, computed, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 
@@ -91,8 +91,8 @@ interface SmartAlert {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-governance-center',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent],
   templateUrl: './governance-center.component.html'
 })

@@ -1,11 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
+import { getApiErrorMessage } from '../../core/http/api-error';
 
 export interface Report {
   id: string;
@@ -52,8 +53,8 @@ interface MonthlyFinancialRow {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-reports',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './reports.component.html',
   styleUrl: './reports.component.css'
@@ -229,16 +230,14 @@ export class ReportsComponent implements OnInit {
         await firstValueFrom(
           this.http.post(
             `${this.apiBaseUrl}/transport/reports/${this.editingReport.id}`,
-            this.buildReportPayload(),
-            this.getRequestOptions()
+            this.buildReportPayload()
           )
         );
       } else {
         await firstValueFrom(
           this.http.post(
             `${this.apiBaseUrl}/transport/reports`,
-            this.buildReportPayload(),
-            this.getRequestOptions()
+            this.buildReportPayload()
           )
         );
       }
@@ -246,7 +245,7 @@ export class ReportsComponent implements OnInit {
       await Promise.all([this.loadReports(), this.loadSummary()]);
       this.closeCreateModal();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل حفظ التقرير.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل حفظ التقرير.'));
     }
   }
 
@@ -324,7 +323,6 @@ export class ReportsComponent implements OnInit {
             recent_bookings?: Array<Record<string, unknown>>;
           };
         }>(`${this.apiBaseUrl}/transport/reports/summary`, {
-          ...this.getRequestOptions(),
           params: {
             from_date: this.financialFilter.fromDate,
             to_date: this.financialFilter.toDate
@@ -396,7 +394,7 @@ export class ReportsComponent implements OnInit {
         }))
       );
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل تحميل بيانات التقارير.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل تحميل بيانات التقارير.'));
     } finally {
       this.isLoading.set(false);
     }
@@ -406,8 +404,7 @@ export class ReportsComponent implements OnInit {
     try {
       const response = await firstValueFrom(
         this.http.get<{ data?: { reports?: Array<Record<string, unknown>> } }>(
-          `${this.apiBaseUrl}/transport/reports`,
-          this.getRequestOptions()
+          `${this.apiBaseUrl}/transport/reports`
         )
       );
 
@@ -427,7 +424,7 @@ export class ReportsComponent implements OnInit {
         }))
       );
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل تحميل قائمة التقارير.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل تحميل قائمة التقارير.'));
     }
   }
 
@@ -453,11 +450,11 @@ export class ReportsComponent implements OnInit {
   private async deleteReportFromApi(id: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiBaseUrl}/transport/reports/${id}`, this.getRequestOptions())
+        this.http.delete(`${this.apiBaseUrl}/transport/reports/${id}`)
       );
       await this.loadReports();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل حذف التقرير.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل حذف التقرير.'));
     }
   }
 
@@ -484,40 +481,6 @@ export class ReportsComponent implements OnInit {
     const date = new Date();
     date.setDate(date.getDate() + days);
     return date.toISOString().slice(0, 10);
-  }
-
-  private getRequestOptions() {
-    return {
-      headers: this.getAuthHeaders()
-    };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return headers;
-  }
-
-  private getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const responseMessage = error.error?.message;
-    if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
-      return responseMessage;
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
   }
 
   Math = Math;

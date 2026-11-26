@@ -1,11 +1,13 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { openExternalUrl } from '../../shared/utils/safe-url';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { resolveApiV1BaseUrl } from '../../shared/api-base';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { EmptyStateComponent } from '../../shared/ui/empty-state/empty-state.component';
+import { getApiErrorMessage } from '../../core/http/api-error';
 
 export interface Advertisement {
   id: string;
@@ -43,8 +45,8 @@ interface BackendAdRow {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-advertisements',
-  standalone: true,
   imports: [CommonModule, FormsModule, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './advertisements.component.html',
   styleUrl: './advertisements.component.css'
@@ -210,7 +212,7 @@ export class AdvertisementsComponent implements OnInit {
 
     try {
       await firstValueFrom(
-        this.http.delete(`${this.apiBaseUrl}/ads/${target.id}`, this.getRequestOptions())
+        this.http.delete(`${this.apiBaseUrl}/ads/${target.id}`)
       );
       await this.loadAdvertisements();
       const maxPage = Math.max(1, Math.ceil(this.filteredAdvertisements().length / this.itemsPerPage()));
@@ -219,7 +221,7 @@ export class AdvertisementsComponent implements OnInit {
       }
       this.closeDeleteModal();
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل حذف الإعلان.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل حذف الإعلان.'));
     } finally {
       this.isDeleting.set(false);
     }
@@ -245,19 +247,18 @@ export class AdvertisementsComponent implements OnInit {
         await firstValueFrom(
           this.http.post(
             `${this.apiBaseUrl}/ads/${this.editingAdvertisement.id}`,
-            body,
-            this.getMultipartOptions()
+            body
           )
         );
       } else {
         await firstValueFrom(
-          this.http.post(`${this.apiBaseUrl}/ads`, body, this.getMultipartOptions())
+          this.http.post(`${this.apiBaseUrl}/ads`, body)
         );
       }
       this.closeCreateModal();
       await this.loadAdvertisements();
     } catch (error) {
-      this.formModalError.set(this.getApiErrorMessage(error, 'فشل حفظ الإعلان.'));
+      this.formModalError.set(getApiErrorMessage(error, 'فشل حفظ الإعلان.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -304,7 +305,7 @@ export class AdvertisementsComponent implements OnInit {
 
   viewImage(imageUrl: string) {
     const url = this.resolveAssetUrl(imageUrl);
-    window.open(url, '_blank');
+    openExternalUrl(url);
   }
 
   nextPage() {
@@ -333,7 +334,7 @@ export class AdvertisementsComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(
-        this.http.get<unknown>(`${this.apiBaseUrl}/ads`, this.getRequestOptions())
+        this.http.get<unknown>(`${this.apiBaseUrl}/ads`)
       );
       const rows = this.extractAds(response);
       const mapped = rows
@@ -342,7 +343,7 @@ export class AdvertisementsComponent implements OnInit {
       this.advertisements.set(mapped);
       this.currentPage.set(1);
     } catch (error) {
-      this.apiError.set(this.getApiErrorMessage(error, 'فشل تحميل الإعلانات من الخادم.'));
+      this.apiError.set(getApiErrorMessage(error, 'فشل تحميل الإعلانات من الخادم.'));
       this.advertisements.set([]);
     } finally {
       this.isLoading.set(false);
@@ -482,65 +483,4 @@ export class AdvertisementsComponent implements OnInit {
     return `${this.assetOrigin}${path}`;
   }
 
-  private getRequestOptions() {
-    return { headers: this.getAuthHeaders() };
-  }
-
-  /** Do not set Content-Type: Angular sets multipart boundary for FormData. */
-  private getMultipartOptions() {
-    return { headers: this.getAuthHeadersForMultipart() };
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-    return headers;
-  }
-
-  private getAuthHeadersForMultipart(): HttpHeaders {
-    const token = localStorage.getItem('admin_token') ?? sessionStorage.getItem('admin_token');
-    let headers = new HttpHeaders({ Accept: 'application/json' });
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
-    }
-    return headers;
-  }
-
-  private getApiErrorMessage(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
-    }
-
-    const errBody = error.error;
-    if (errBody && typeof errBody === 'object' && errBody !== null) {
-      const rec = errBody as Record<string, unknown>;
-      const msg = rec['message'];
-      if (typeof msg === 'string' && msg.trim().length > 0) {
-        return msg;
-      }
-      const errors = rec['errors'];
-      if (errors && typeof errors === 'object') {
-        const parts: string[] = [];
-        for (const v of Object.values(errors as Record<string, unknown>)) {
-          if (Array.isArray(v)) {
-            parts.push(...v.map((x) => String(x)));
-          } else if (v != null) {
-            parts.push(String(v));
-          }
-        }
-        if (parts.length > 0) {
-          return parts.join(' ');
-        }
-      }
-    }
-
-    if (error.status === 401) {
-      return 'غير مصرح لك. تحقق من وجود admin_token في التخزين المحلي.';
-    }
-
-    return fallback;
-  }
 }
