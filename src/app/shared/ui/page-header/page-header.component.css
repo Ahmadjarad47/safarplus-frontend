@@ -1,0 +1,20 @@
+:host { display: block; }
+
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.page-heading__intro { min-width: 0; }
+.page-heading__eyebrow { margin-bottom: 0.3rem; color: var(--app-primary); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.015em; }
+.page-heading__title { margin: 0; }
+.page-heading__description { max-width: 48rem; margin-top: 0.32rem; color: var(--app-muted); font-size: 0.8rem; line-height: 1.7; }
+.page-heading__actions { display: flex; flex: none; align-items: center; gap: 0.55rem; }
+.page-heading__actions:empty { display: none; }
+
+@media (max-width: 767px) {
+  .page-heading { align-items: stretch; flex-direction: column; gap: 0.9rem; }
+  .page-heading__actions { width: 100%; flex-wrap: wrap; }
+}

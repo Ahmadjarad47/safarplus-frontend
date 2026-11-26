@@ -1,0 +1,17 @@
+:host { display: block; direction: rtl; }
+
+.status-pill {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  border-radius: 999px;
+  padding-inline: 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-available,
+.status-confirmed { background: #eaf7f1; color: #176348; }
+.status-departed { background: #fbf5e8; color: #8a5a0e; }
+.status-canceled { background: #fbeeee; color: #a23c3c; }

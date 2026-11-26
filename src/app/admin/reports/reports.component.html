@@ -1,0 +1,479 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="التحليلات المالية" title="التقارير" description="حلّل الحجوزات والمدفوعات وصافي الأرباح ضمن الفترات المحددة.">
+      <button class="btn btn-outline" (click)="exportToExcel()">
+        <i class="fas fa-file-excel text-success"></i>
+        تصدير Excel
+      </button>
+      <button class="btn btn-outline" (click)="exportToPDF()">
+        <i class="fas fa-file-pdf text-error"></i>
+        تصدير PDF
+      </button>
+  </app-page-header>
+
+  <section class="mb-8 rounded-lg bg-base-200 p-5 shadow-sm">
+    <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold text-primary">الملخص المالي</p>
+        <h2 class="mt-1 text-lg font-bold">أداء شركة النقل</h2>
+        <p class="mt-1 text-xs text-base-content/60">
+          الدخل، عمولة المنصة، الحجوزات الملغاة، وصافي الأرباح حسب الفترة المختارة.
+        </p>
+      </div>
+
+      <form class="grid grid-cols-1 gap-3 md:grid-cols-[180px_180px_auto]" (ngSubmit)="applyFinancialFilter()">
+        <label class="form-control">
+          <span class="label-text mb-1">من تاريخ</span>
+          <input class="input input-bordered" type="date" name="financialFrom" [(ngModel)]="financialFilter.fromDate" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">إلى تاريخ</span>
+          <input class="input input-bordered" type="date" name="financialTo" [(ngModel)]="financialFilter.toDate" />
+        </label>
+        <button class="btn btn-primary self-end text-white" type="submit" [disabled]="isLoading()">
+          @if (isLoading()) {
+            <span class="loading loading-spinner loading-sm"></span>
+          } @else {
+            <i class="fas fa-filter"></i>
+          }
+          تطبيق
+        </button>
+      </form>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div class="report-metric">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-base-content/60">إجمالي الدخل</span>
+          <i class="fas fa-money-bill-trend-up text-success"></i>
+        </div>
+        <p class="mt-2 text-3xl font-bold">{{ financialStats().grossRevenue.toLocaleString() }} ل.س</p>
+        <p class="mt-1 text-xs text-base-content/50">{{ financialStats().paidBookings }} حجز مدفوع</p>
+      </div>
+
+      <div class="report-metric">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-base-content/60">عمولة المنصة</span>
+          <i class="fas fa-percent text-warning"></i>
+        </div>
+        <p class="mt-2 text-3xl font-bold">{{ financialStats().platformCommission.toLocaleString() }} ل.س</p>
+        <p class="mt-1 text-xs text-base-content/50">محسوبة من profit_amount</p>
+      </div>
+
+      <div class="report-metric report-metric--primary">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-base-content/60">صافي الربح</span>
+          <i class="fas fa-chart-pie text-primary"></i>
+        </div>
+        <p class="mt-2 text-3xl font-bold text-primary">{{ financialStats().netProfit.toLocaleString() }} ل.س</p>
+        <p class="mt-1 text-xs text-base-content/50">الدخل بعد خصم العمولة</p>
+      </div>
+
+      <div class="report-metric">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-base-content/60">الحجوزات الملغاة</span>
+          <i class="fas fa-ban text-error"></i>
+        </div>
+        <p class="mt-2 text-3xl font-bold">{{ financialStats().cancelledBookings }}</p>
+        <p class="mt-1 text-xs text-base-content/50">
+          {{ financialStats().cancelledAmount.toLocaleString() }} ل.س · {{ financialStats().cancellationRate }}%
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div class="rounded-lg bg-base-100 p-4">
+        <span class="text-sm text-base-content/60">متوسط قيمة التذكرة</span>
+        <p class="mt-2 text-2xl font-bold">{{ financialStats().averageTicket.toLocaleString() }} ل.س</p>
+      </div>
+      <div class="rounded-lg bg-base-100 p-4">
+        <span class="text-sm text-base-content/60">الفترة المعروضة</span>
+        <p class="mt-2 text-2xl font-bold" dir="ltr">{{ financialStats().fromDate }} → {{ financialStats().toDate }}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card mb-8 bg-base-200 shadow-lg">
+    <div class="card-body">
+      <h3 class="card-title mb-4">صافي الأرباح حسب الشهر</h3>
+      <div class="flex h-64 items-end justify-between gap-2 pb-4">
+        @for (bar of netProfitBars(); track bar.month) {
+          <div class="flex h-full flex-1 flex-col items-center gap-2">
+            <div class="relative flex h-full w-full items-end justify-center">
+              <div
+                class="tooltip tooltip-top w-full cursor-pointer rounded-t-lg bg-success transition-all duration-500 hover:bg-success/80"
+                [style.height.%]="bar.height"
+                [attr.data-tip]="'صافي: ' + bar.netProfit.toLocaleString() + ' ل.س | عمولة: ' + bar.commission.toLocaleString()"
+                [style.min-height.px]="10">
+              </div>
+            </div>
+            <span class="text-center text-xs font-medium text-base-content/70">{{ bar.month }}</span>
+            <span class="text-center text-[11px] text-error">{{ bar.cancelledBookings }} إلغاء</span>
+          </div>
+        } @empty {
+          <div class="flex h-full w-full items-center justify-center">
+            <app-empty-state icon="fa-chart-column" title="لا توجد بيانات مالية" description="ستظهر مقارنة الأرباح هنا عند توفر بيانات للفترة المحددة." />
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Bookings Summary -->
+    <div class="card bg-base-200 shadow-lg">
+      <div class="card-body">
+        <h3 class="card-title mb-4">ملخص الحجوزات</h3>
+        <div class="space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">إجمالي التذاكر</span>
+            <span class="text-2xl font-bold">{{ dashboardStats().totalTickets.toLocaleString() }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">الحجوزات المؤكدة</span>
+            <span class="text-2xl font-bold">{{ dashboardStats().confirmedBookings.toLocaleString() }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">إجمالي الرحلات</span>
+            <span class="text-2xl font-bold">{{ dashboardStats().totalTrips.toLocaleString() }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payments Summary -->
+    <div class="card bg-base-200 shadow-lg">
+      <div class="card-body">
+        <h3 class="card-title mb-4">ملخص المدفوعات</h3>
+        <div class="space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">المدفوعات المعلقة</span>
+            <span class="text-2xl font-bold">{{ dashboardStats().pendingPayments.toLocaleString() }} ل.س</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">المدفوعات المستلمة</span>
+            <span class="text-2xl font-bold">{{ dashboardStats().receivedPayments.toLocaleString() }} ل.س</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-base-content/70">إجمالي الإيرادات</span>
+            <span class="text-2xl font-bold text-primary">{{ dashboardStats().totalRevenue.toLocaleString() }} ل.س</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- Revenue by Month Chart -->
+    <div class="card bg-base-200 shadow-lg">
+      <div class="card-body">
+        <h3 class="card-title mb-4">الإيرادات حسب الشهر</h3>
+        <div class="flex items-end justify-between gap-1 h-64 pb-4">
+          @for (bar of revenueBars(); track bar.month) {
+            <div class="flex-1 flex flex-col items-center gap-2 h-full">
+              <div class="relative w-full h-full flex items-end justify-center">
+                <div 
+                  class="bg-primary rounded-t-lg w-full transition-all duration-500 hover:bg-primary-focus cursor-pointer tooltip tooltip-top"
+                  [style.height.%]="bar.height"
+                  [attr.data-tip]="bar.revenue.toLocaleString() + ' ل.س'"
+                  [style.min-height.px]="10">
+                </div>
+              </div>
+              <span class="text-xs text-base-content/70 font-medium text-center">{{ bar.month }}</span>
+            </div>
+          } @empty {
+            <div class="flex h-full w-full items-center justify-center">
+              <app-empty-state icon="fa-chart-line" title="لا توجد إيرادات للعرض" description="ستظهر حركة الإيرادات الشهرية عند توفر البيانات." />
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings by Month Chart -->
+    <div class="card bg-base-200 shadow-lg">
+      <div class="card-body">
+        <h3 class="card-title mb-4">الحجوزات حسب الشهر</h3>
+        <div class="flex items-end justify-between gap-1 h-64 pb-4">
+          @for (bar of bookingBars(); track bar.month) {
+            <div class="flex-1 flex flex-col items-center gap-2 h-full">
+              <div class="relative w-full h-full flex items-end justify-center">
+                <div 
+                  class="bg-info rounded-t-lg w-full transition-all duration-500 hover:bg-info-focus cursor-pointer tooltip tooltip-top"
+                  [class.bg-primary]="$index === 6"
+                  [class.hover:bg-primary-focus]="$index === 6"
+                  [style.height.%]="bar.height"
+                  [attr.data-tip]="bar.bookings + ' حجز'"
+                  [style.min-height.px]="10">
+                </div>
+              </div>
+              <span class="text-xs text-base-content/70 font-medium text-center">{{ bar.month }}</span>
+            </div>
+          } @empty {
+            <div class="flex h-full w-full items-center justify-center">
+              <app-empty-state icon="fa-ticket" title="لا توجد حجوزات للعرض" description="ستظهر حركة الحجوزات الشهرية عند توفر البيانات." />
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bookings Table -->
+  <div class="card bg-base-200 shadow-lg mb-8">
+    <div class="card-body">
+      <h3 class="card-title mb-4">الحجوزات الأخيرة</h3>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>المبلغ</th>
+              <th>الحالة</th>
+              <th>الرحلة</th>
+              <th>التاريخ</th>
+              <th>اسم الراكب</th>
+              <th>رقم الحجز</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (booking of recentBookings(); track booking.id) {
+              <tr>
+                <td class="font-bold">{{ booking.totalAmount.toLocaleString() }} ل.س</td>
+                <td>
+                  <span class="badge text-white" [ngClass]="statusBadgeClass(booking.status)">
+                    {{ statusText(booking.status) }}
+                  </span>
+                </td>
+                <td>{{ booking.trip.plan }}</td>
+                <td>{{ booking.trip.tripDate }}</td>
+                <td>{{ booking.passenger.name }}</td>
+                <td class="font-mono">#{{ booking.bookingNumber }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty-table-cell"><app-empty-state icon="fa-receipt" title="لا توجد حجوزات حديثة" description="ستظهر أحدث الحجوزات في هذا الجدول." /></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reports Section -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-2xl font-bold">التقارير</h2>
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <i class="fas fa-plus mr-2"></i>
+        إنشاء تقرير جديد
+      </button>
+    </div>
+  </div>
+
+  <!-- Reports Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    @for (report of reports(); track report.id) {
+      <div class="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+        <div class="card-body">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex-1">
+              <h3 class="card-title mb-2 text-lg">{{ report.title }}</h3>
+              <div class="space-y-2">
+                <div class="flex justify-between">
+                  <span class="text-sm text-base-content/70">النوع:</span>
+                  <span class="badge badge-outline">{{ report.type }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-sm text-base-content/70">الفترة:</span>
+                  <span class="font-semibold">{{ report.period }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-sm text-base-content/70">تاريخ الإنشاء:</span>
+                  <span class="font-semibold">{{ report.generatedDate }}</span>
+                </div>
+              </div>
+            </div>
+            <span class="badge text-white" [ngClass]="reportStatusClass(report.status)">
+              {{ reportStatusText(report.status) }}
+            </span>
+          </div>
+          <div class="card-actions justify-end mt-4">
+            <button 
+              class="btn btn-sm btn-primary" 
+              [disabled]="report.status === 'generating'"
+              (click)="downloadReport(report)">
+              <i class="fas fa-download mr-2"></i>
+              تحميل
+            </button>
+            <button class="btn btn-sm btn-info text-white" (click)="editReport(report)">
+              <i class="fas fa-edit mr-2"></i>
+              تعديل
+            </button>
+            <button class="btn btn-sm btn-error text-white" (click)="deleteReport(report.id)">
+              <i class="fas fa-trash mr-2"></i>
+              حذف
+            </button>
+          </div>
+        </div>
+      </div>
+    } @empty {
+      <div class="col-span-full"><app-empty-state icon="fa-file-lines" title="لا توجد تقارير محفوظة" description="أنشئ تقريراً جديداً ليظهر ضمن هذه القائمة." /></div>
+    }
+  </div>
+
+  <!-- Create Report Modal -->
+  @if (showCreateModal()) {
+    <input type="checkbox" id="create-report-modal" class="modal-toggle" [checked]="showCreateModal()" (change)="showCreateModal.set($event.target.checked)" />
+    <div class="modal" role="dialog">
+      <div class="modal-box max-w-2xl" dir="rtl">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="font-bold text-2xl">{{ editingReport ? 'تعديل التقرير' : 'إنشاء تقرير' }}</h3>
+          <label for="create-report-modal" class="btn btn-sm btn-circle btn-ghost" (click)="closeCreateModal()">
+            <i class="fas fa-times"></i>
+          </label>
+        </div>
+
+        <form (ngSubmit)="generateReport()" #reportForm="ngForm">
+          <!-- Destination Selection -->
+          <div class="mb-6">
+            <label class="label">
+              <span class="label-text font-semibold">إختار الوجهة للرحلات لانشاء التقرير المراد</span>
+            </label>
+            <div class="flex gap-4 mt-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="destination" 
+                  value="all" 
+                  class="radio radio-primary"
+                  [(ngModel)]="reportFormData.destination"
+                  required
+                />
+                <span>الكل</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="destination" 
+                  value="إدلب" 
+                  class="radio radio-primary"
+                  [(ngModel)]="reportFormData.destination"
+                />
+                <span>ادلب</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="destination" 
+                  value="دمشق" 
+                  class="radio radio-primary"
+                  [(ngModel)]="reportFormData.destination"
+                />
+                <span>دمشق</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="destination" 
+                  value="حلب" 
+                  class="radio radio-primary"
+                  [(ngModel)]="reportFormData.destination"
+                />
+                <span>حلب</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- From/To Destinations -->
+          <div class="mb-6">
+            <label class="label">
+              <span class="label-text font-semibold">إختار الوجهات للرحلات لانشاء التقرير المراد</span>
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">من</span>
+                </label>
+                <div class="relative">
+                  <input 
+                    type="text" 
+                    class="input input-bordered w-full" 
+                    placeholder="إدلب"
+                    [(ngModel)]="reportFormData.fromDestination"
+                    name="fromDestination"
+                    required
+                  />
+                  <i class="fas fa-calendar absolute left-3 top-3 text-base-content/50"></i>
+                </div>
+              </div>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">إلى</span>
+                </label>
+                <div class="relative">
+                  <input 
+                    type="text" 
+                    class="input input-bordered w-full" 
+                    placeholder="دمشق"
+                    [(ngModel)]="reportFormData.toDestination"
+                    name="toDestination"
+                    required
+                  />
+                  <i class="fas fa-calendar absolute left-3 top-3 text-base-content/50"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Period Selection -->
+          <div class="mb-6">
+            <label class="label">
+              <span class="label-text font-semibold">إختر الفترة الزمنية لانشاء التقرير المراد</span>
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">من</span>
+                </label>
+                <div class="relative">
+                  <input 
+                    type="date" 
+                    class="input input-bordered w-full" 
+                    [(ngModel)]="reportFormData.fromDate"
+                    name="fromDate"
+                    required
+                  />
+                  <i class="fas fa-calendar absolute left-3 top-3 text-base-content/50 pointer-events-none"></i>
+                </div>
+              </div>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text">إلى</span>
+                </label>
+                <div class="relative">
+                  <input 
+                    type="date" 
+                    class="input input-bordered w-full" 
+                    [(ngModel)]="reportFormData.toDate"
+                    name="toDate"
+                    required
+                  />
+                  <i class="fas fa-calendar absolute left-3 top-3 text-base-content/50 pointer-events-none"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-action">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="fas fa-file-export mr-2"></i>
+              استخراج التقرير
+            </button>
+            <label for="create-report-modal" class="btn" (click)="closeCreateModal()">إلغاء</label>
+          </div>
+        </form>
+      </div>
+      <label class="modal-backdrop" for="create-report-modal">Close</label>
+    </div>
+  }
+</div>

@@ -1,0 +1,23 @@
+<article
+  class="stat-card"
+  [class.stat-card--highlighted]="highlighted"
+  [attr.data-tone]="tone"
+>
+  <div class="stat-card__heading">
+    <span class="stat-card__icon" aria-hidden="true">
+      <i [class]="iconClass"></i>
+    </span>
+    <p class="stat-card__label">{{ label }}</p>
+  </div>
+
+  <p class="stat-card__value">
+    <span>{{ value }}</span>
+    @if (suffix) {
+      <small>{{ suffix }}</small>
+    }
+  </p>
+
+  @if (description) {
+    <p class="stat-card__description">{{ description }}</p>
+  }
+</article>

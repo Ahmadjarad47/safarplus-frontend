@@ -1,0 +1,180 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="إدارة الحساب" title="إعدادات الشركة" description="حدّث بيانات الشركة الرسمية وأدر المستندات المرتبطة بالحساب.">
+    @if (!isEditMode()) {
+      <button class="btn btn-primary" (click)="enterEditMode()">
+        <i class="fas fa-pen"></i>
+        تعديل البيانات
+      </button>
+    }
+  </app-page-header>
+
+  @if (apiError()) {
+    <div class="alert alert-error mb-6">
+      <span>{{ apiError() }}</span>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="alert alert-success mb-6">
+      <span>{{ successMessage() }}</span>
+    </div>
+  }
+
+  @if (!isEditMode()) {
+    <section class="card mb-6">
+      <div class="card-body">
+        <div class="section-heading"><div><h2 class="section-heading__title">معلومات الشركة</h2><p class="section-heading__description">البيانات الأساسية المستخدمة في الملف التعريفي والتواصل.</p></div></div>
+
+        @if (isLoading()) {
+          <div class="py-8 text-center">
+            <span class="loading loading-spinner loading-md"></span>
+          </div>
+        } @else {
+          <div class="detail-grid">
+            <div class="info-row">
+              <p class="info-row__label">اسم الشركة</p>
+              <p class="info-row__value">{{ companySettings().companyName || '—' }}</p>
+            </div>
+            <div class="info-row">
+              <p class="info-row__label">عنوان الشركة</p>
+              <p class="info-row__value">{{ companySettings().companyAddress || '—' }}</p>
+            </div>
+            <div class="info-row">
+              <p class="info-row__label">البريد الإلكتروني</p>
+              <p class="info-row__value" dir="ltr">{{ companySettings().email || '—' }}</p>
+            </div>
+            <div class="info-row">
+              <p class="info-row__label">رقم الهاتف</p>
+              <p class="info-row__value" dir="ltr">{{ companySettings().phoneNumber || '—' }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-body">
+        <div class="section-heading"><div><h2 class="section-heading__title">مستندات الشركة</h2><p class="section-heading__description">الملفات والمرفقات الرسمية المرتبطة بحساب الشركة.</p></div></div>
+
+        <div>
+          @for (file of companyFiles(); track file.id) {
+            <div class="file-row">
+              <div class="flex min-w-0 items-center gap-3">
+                <div class="file-row__icon"><i class="fas fa-file-pdf"></i></div>
+                <div>
+                  <p class="truncate text-sm font-semibold text-base-content">{{ file.fileName }}</p>
+                  <p class="mt-1 text-xs text-base-content/55">تم الرفع في {{ formatDate(file.uploadDate) }}</p>
+                </div>
+              </div>
+              <div class="table-actions">
+                <button class="btn table-action" aria-label="عرض الملف" title="عرض" (click)="viewFile(file)"><i class="fas fa-eye"></i></button>
+                <button class="btn table-action table-action--primary" aria-label="تحميل الملف" title="تحميل" (click)="downloadFile(file)"><i class="fas fa-download"></i></button>
+                <button class="btn table-action table-action--danger" aria-label="حذف الملف" title="حذف" (click)="deleteFile(file.id)"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+          } @empty {
+            <app-empty-state icon="fa-folder-open" title="لا توجد مستندات" description="ارفع مستنداً جديداً ليظهر ضمن ملف الشركة."></app-empty-state>
+          }
+        </div>
+
+        <div class="mt-4">
+          <label for="file-upload" class="btn btn-primary btn-outline" [class.btn-disabled]="isUploading()">
+            <i class="fas fa-upload ml-2"></i>
+            {{ isUploading() ? 'جارٍ الرفع...' : 'رفع ملف جديد' }}
+          </label>
+          <input
+            id="file-upload"
+            type="file"
+            class="hidden"
+            accept=".pdf,.doc,.docx"
+            (change)="onFileSelected($event)"
+          />
+        </div>
+      </div>
+    </section>
+  }
+
+  @if (isEditMode()) {
+    <div class="card mx-auto max-w-4xl">
+      <div class="card-body">
+        <div class="section-heading"><div><h2 class="section-heading__title">تعديل بيانات الشركة</h2><p class="section-heading__description">تأكد من دقة البيانات قبل حفظ التغييرات.</p></div></div>
+
+        <form (ngSubmit)="saveSettings()" class="space-y-8">
+          <section>
+            <h3 class="mb-4 text-sm font-semibold">المعلومات الأساسية</h3>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">اسم الشركة</span>
+                </label>
+                <input
+                  type="text"
+                  class="input input-bordered w-full"
+                  [(ngModel)]="formData.companyName"
+                  name="companyName"
+                  required
+                />
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">عنوان الشركة</span>
+                </label>
+                <input
+                  type="text"
+                  class="input input-bordered w-full"
+                  [(ngModel)]="formData.companyAddress"
+                  name="companyAddress"
+                  required
+                />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 class="mb-4 text-sm font-semibold">معلومات الاتصال</h3>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">البريد الإلكتروني</span>
+                </label>
+                <input
+                  type="email"
+                  class="input input-bordered w-full"
+                  [(ngModel)]="formData.email"
+                  name="email"
+                  required
+                />
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">رقم الهاتف</span>
+                </label>
+                <input
+                  type="tel"
+                  class="input input-bordered w-full"
+                  [(ngModel)]="formData.phoneNumber"
+                  name="phoneNumber"
+                  required
+                />
+              </div>
+            </div>
+          </section>
+
+          <div class="flex justify-end gap-3 border-t border-base-300 pt-5">
+            <button type="button" class="btn btn-ghost" (click)="cancelEdit()">
+              إلغاء
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+              <i class="fas fa-save ml-2"></i>
+              {{ isSaving() ? 'جارٍ الحفظ...' : 'حفظ' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

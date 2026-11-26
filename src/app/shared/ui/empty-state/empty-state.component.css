@@ -1,0 +1,5 @@
+:host { display: block; }
+.empty-state { display: grid; min-height: 10rem; place-items: center; align-content: center; padding: 1.5rem; text-align: center; }
+.empty-state__icon { display: grid; width: 2.8rem; height: 2.8rem; margin-bottom: 0.7rem; place-items: center; border-radius: 0.75rem; background: var(--app-surface-soft); color: #8ba0a8; font-size: 1rem; }
+.empty-state__title { color: var(--app-text); font-size: 0.82rem; font-weight: 700; }
+.empty-state__description { max-width: 22rem; margin-top: 0.2rem; color: var(--app-muted); font-size: 0.72rem; line-height: 1.65; }

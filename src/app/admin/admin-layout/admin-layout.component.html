@@ -1,0 +1,76 @@
+<div class="app-shell" dir="rtl">
+  <input id="admin-navigation" type="checkbox" class="app-shell__toggle" />
+  <label for="admin-navigation" aria-label="إغلاق قائمة التنقل" class="app-shell__backdrop"></label>
+
+  <aside class="app-shell__sidebar app-sidebar">
+    <div class="app-brand">
+      <div class="app-brand__mark">
+        <img src="/assets/brand/safar-plus-mark.png" alt="" width="512" height="512" />
+      </div>
+      <div>
+        <p class="app-brand__name">سفر بلس</p>
+        <p class="app-brand__caption">منصة إدارة النقل الذكي</p>
+      </div>
+    </div>
+
+    <nav class="app-nav" aria-label="التنقل الرئيسي">
+      <ul class="menu">
+        @for (item of menuItems; track item.path) {
+          @if ($index === 0 || menuItems[$index - 1].section !== item.section) {
+            <li class="app-nav__label" aria-hidden="true">{{ item.section }}</li>
+          }
+          <li>
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              (click)="closeNavigation()">
+              <i [class]="item.iconClass"></i>
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <div class="app-sidebar__footer">
+      <div class="app-sidebar__profile">
+        <div class="app-sidebar__profile-icon"><i class="fas fa-building"></i></div>
+        <div class="min-w-0">
+          <p class="app-sidebar__profile-name">{{ userName }}</p>
+          <p class="app-sidebar__profile-role">مسؤول شركة النقل</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost app-sidebar__logout" (click)="logout()">
+        <i class="fas fa-arrow-right-from-bracket"></i>
+        <span>تسجيل الخروج</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="app-shell__main">
+    <header class="app-topbar">
+      <div class="app-topbar__context">
+        <label for="admin-navigation" class="app-topbar__menu" aria-label="فتح قائمة التنقل">
+          <i class="fas fa-bars"></i>
+        </label>
+        <div class="min-w-0">
+          <p class="app-topbar__eyebrow">مساحة إدارة الشركة</p>
+          <h1 class="app-topbar__title">{{ pageTitle }}</h1>
+        </div>
+      </div>
+
+      <div class="app-user" aria-label="بيانات المستخدم الحالي">
+        <div class="app-user__avatar"><i class="fas fa-user"></i></div>
+        <div class="app-user__meta min-w-0">
+          <p class="app-user__name">{{ userName }}</p>
+          <p class="app-user__role">{{ companyName }}</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

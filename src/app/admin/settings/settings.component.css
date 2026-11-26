@@ -1,0 +1,2 @@
+:host { display: block; direction: rtl; }
+input[type="file"] { cursor: pointer; }

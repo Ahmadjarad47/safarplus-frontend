@@ -1,0 +1,160 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="مراقبة النظام" title="السجلات المتقدمة" [description]="'قراءة آخر أحداث النظام والأخطاء والتحذيرات من ' + fileName() + '.'">
+      <button type="button" class="btn btn-outline" (click)="clearFilters()" [disabled]="isLoading()">
+        <i class="fas fa-filter-circle-xmark"></i>
+        مسح الفلاتر
+      </button>
+      <button type="button" class="btn btn-primary text-white" (click)="loadLogs()" [disabled]="isLoading()">
+        @if (isLoading()) {
+          <span class="loading loading-spinner loading-sm"></span>
+        } @else {
+          <i class="fas fa-rotate"></i>
+        }
+        تحديث
+      </button>
+  </app-page-header>
+
+  @if (apiError()) {
+    <div class="alert alert-warning mb-4">
+      <i class="fas fa-triangle-exclamation"></i>
+      <span>{{ apiError() }}</span>
+    </div>
+  }
+
+  @if (usingMockData()) {
+    <div class="alert alert-info mb-4">
+      <i class="fas fa-database"></i>
+      <span>يتم عرض سجلات تجريبية حتى تتوفر سجلات الخادم.</span>
+    </div>
+  }
+
+  <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">إجمالي السجلات</p>
+      <p class="mt-2 text-3xl font-bold">{{ summary().total }}</p>
+    </div>
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">أولوية عالية</p>
+      <p class="mt-2 text-3xl font-bold text-error">{{ highPriorityCount() }}</p>
+    </div>
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">تحذيرات</p>
+      <p class="mt-2 text-3xl font-bold text-warning">{{ summary().byLevel.warning }}</p>
+    </div>
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">معلومات وتصحيح</p>
+      <p class="mt-2 text-3xl font-bold text-info">{{ summary().byLevel.info + summary().byLevel.debug }}</p>
+    </div>
+  </section>
+
+  <section class="page-toolbar flex-wrap">
+    <label class="input input-bordered page-toolbar__search flex items-center gap-2">
+      <i class="fas fa-search text-base-content/50"></i>
+      <input
+        type="text"
+        class="grow"
+        placeholder="بحث في الرسالة أو السياق"
+        [(ngModel)]="searchQuery"
+        (keyup.enter)="loadLogs()"
+      />
+    </label>
+    <select class="select select-bordered" [(ngModel)]="levelFilter">
+      @for (level of levels; track level) {
+        <option [value]="level">{{ levelText(level) }}</option>
+      }
+    </select>
+    <select class="select select-bordered" [(ngModel)]="limit">
+      <option [ngValue]="50">آخر 50</option>
+      <option [ngValue]="150">آخر 150</option>
+      <option [ngValue]="300">آخر 300</option>
+      <option [ngValue]="500">آخر 500</option>
+    </select>
+    <button type="button" class="btn btn-neutral" (click)="loadLogs()" [disabled]="isLoading()">
+      تطبيق
+    </button>
+  </section>
+
+  <section class="table-shell">
+    <div class="table-shell__header"><div><h2 class="table-shell__title">أحداث النظام</h2><p class="table-shell__description">رسائل النظام مرتبة حسب أحدث حدث.</p></div><span class="table-shell__count">{{ entries().length }} سجل</span></div>
+    <div class="overflow-x-auto">
+      <table class="table table-zebra">
+        <thead>
+          <tr>
+            <th class="text-right">إجراء</th>
+            <th class="text-right">الرسالة</th>
+            <th class="text-right">البيئة</th>
+            <th class="text-right">المستوى</th>
+            <th class="text-right">الوقت</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (isLoading()) {
+            <tr>
+              <td colspan="5" class="py-10 text-center">
+                <span class="loading loading-spinner loading-lg"></span>
+                <p class="mt-2 text-base-content/60">جاري قراءة السجلات...</p>
+              </td>
+            </tr>
+          } @else {
+            @for (entry of entries(); track entry.id) {
+              <tr>
+                <td>
+                  <button type="button" class="btn table-action" aria-label="عرض تفاصيل السجل" title="التفاصيل" (click)="viewEntry(entry)"><i class="fas fa-eye"></i></button>
+                </td>
+                <td class="max-w-xl">
+                  <p class="line-clamp-2 text-sm">{{ entry.message }}</p>
+                </td>
+                <td>{{ entry.environment }}</td>
+                <td>
+                  <span class="badge text-white" [ngClass]="levelBadgeClass(entry.level)">
+                    {{ levelText(entry.level) }}
+                  </span>
+                </td>
+                <td dir="ltr">{{ entry.timestamp }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="py-10 text-center text-base-content/60">لا توجد سجلات مطابقة.</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+@if (selectedEntry()) {
+  <div class="modal modal-open">
+    <div class="modal-box max-w-5xl" dir="rtl">
+      <div class="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <span class="badge text-white" [ngClass]="levelBadgeClass(selectedEntry()!.level)">
+            {{ levelText(selectedEntry()!.level) }}
+          </span>
+          <h2 class="mt-3 text-2xl font-bold">تفاصيل السجل</h2>
+          <p class="text-sm text-base-content/60" dir="ltr">{{ selectedEntry()!.timestamp }}</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost" (click)="closeEntry()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="mb-2 text-sm text-base-content/60">الرسالة</p>
+          <pre class="whitespace-pre-wrap text-sm leading-6" dir="ltr">{{ selectedEntry()!.message }}</pre>
+        </div>
+        <div class="rounded-lg bg-neutral p-4 text-neutral-content">
+          <p class="mb-2 text-sm opacity-70">Context / Stack</p>
+          <pre class="max-h-[50vh] overflow-auto whitespace-pre-wrap text-xs leading-5" dir="ltr">{{ selectedEntry()!.context || 'No additional context.' }}</pre>
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-primary text-white" (click)="closeEntry()">إغلاق</button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeEntry()"></div>
+  </div>
+}

@@ -1,0 +1,308 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="إدارة الوصول" title="المستخدمون" description="تابع الحسابات والأدوار وحالة الوصول من سجل مركزي.">
+      <button type="button" class="btn btn-primary" (click)="openCreateModal()">
+        <i class="fas fa-user-plus"></i>
+        مستخدم جديد
+      </button>
+  </app-page-header>
+
+  @if (apiError()) {
+    <div class="alert alert-warning mb-4">
+      <i class="fas fa-circle-info"></i>
+      <span>{{ apiError() }}</span>
+    </div>
+  }
+
+  @if (usingMockData()) {
+    <div class="alert alert-info mb-4">
+      <i class="fas fa-database"></i>
+      <span>يتم عرض بيانات تجريبية حتى تتوفر بيانات المستخدمين من الخادم.</span>
+    </div>
+  }
+
+  <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">كل المستخدمين</p>
+      <p class="mt-2 text-3xl font-bold">{{ users().length }}</p>
+    </div>
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">الحسابات النشطة</p>
+      <p class="mt-2 text-3xl font-bold text-success">{{ activeUsers() }}</p>
+    </div>
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">الحسابات المحظورة</p>
+      <p class="mt-2 text-3xl font-bold text-error">{{ blockedUsers() }}</p>
+    </div>
+    <div class="compact-stat">
+      <p class="text-sm text-base-content/60">حسابات الإدارة</p>
+      <p class="mt-2 text-3xl font-bold text-info">{{ adminUsers() }}</p>
+    </div>
+  </section>
+
+  <section class="page-toolbar">
+    <div class="page-toolbar__group page-toolbar__search">
+    <label class="input input-bordered flex w-full items-center gap-2">
+      <i class="fas fa-search text-base-content/50"></i>
+      <input
+        type="text"
+        class="grow"
+        placeholder="بحث بالاسم أو البريد أو الهاتف"
+        [value]="searchQuery()"
+        (input)="onSearch($event)"
+      />
+    </label></div>
+
+    <div class="page-toolbar__group">
+      <select class="select select-bordered" [ngModel]="roleFilter()" (ngModelChange)="setRoleFilter($event)">
+        <option value="all">كل الأدوار</option>
+        @for (role of availableRoles; track role) {
+          <option [value]="role">{{ role }}</option>
+        }
+      </select>
+      <select class="select select-bordered" [ngModel]="statusFilter()" (ngModelChange)="setStatusFilter($event)">
+        <option value="all">كل الحالات</option>
+        <option value="active">نشط</option>
+        <option value="blocked">محظور</option>
+      </select>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="loadUsers()" [disabled]="isLoading()"><i class="fas fa-rotate"></i>تحديث</button>
+    </div>
+  </section>
+
+  <section class="table-shell">
+    <div class="table-shell__header"><div><h2 class="table-shell__title">دليل المستخدمين</h2><p class="table-shell__description">الحسابات المسجلة والأدوار وحالة الوصول الحالية.</p></div><span class="table-shell__count">{{ filteredUsers().length }} مستخدم</span></div>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="text-right">إجراءات</th>
+            <th class="text-right">الحالة</th>
+            <th class="text-right">الدور</th>
+            <th class="text-right">الهاتف</th>
+            <th class="text-right">البريد</th>
+            <th class="text-right">الاسم</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (isLoading()) {
+            <tr>
+              <td colspan="6" class="empty-table-cell">
+                <div class="loading-state"><span class="loading loading-spinner"></span><span>جاري تحميل المستخدمين</span></div>
+              </td>
+            </tr>
+          } @else {
+            @for (user of paginatedUsers(); track user.id) {
+              <tr>
+                <td>
+                  <div class="table-actions">
+                    <button type="button" class="btn table-action" aria-label="عرض المستخدم" title="عرض" (click)="viewUser(user)"><i class="fas fa-eye"></i></button>
+                    <button type="button" class="btn table-action table-action--primary" aria-label="تعديل المستخدم" title="تعديل" (click)="openEditModal(user)"><i class="fas fa-pen"></i></button>
+                    <button
+                      type="button"
+                      class="btn table-action"
+                      [attr.aria-label]="user.status === 'active' ? 'حظر المستخدم' : 'تفعيل المستخدم'"
+                      [title]="user.status === 'active' ? 'حظر' : 'تفعيل'"
+                      [disabled]="isSubmitting()"
+                      (click)="toggleStatus(user)"
+                    >
+                      <i class="fas" [class.fa-ban]="user.status === 'active'" [class.fa-check]="user.status === 'blocked'"></i>
+                    </button>
+                    <button type="button" class="btn table-action table-action--danger" aria-label="حذف المستخدم" title="حذف" (click)="openDeleteModal(user)"><i class="fas fa-trash"></i></button>
+                  </div>
+                </td>
+                <td><span class="badge text-white" [ngClass]="statusBadgeClass(user.status)">{{ statusText(user.status) }}</span></td>
+                <td><span class="badge" [ngClass]="roleBadgeClass(user.role)">{{ user.role || '-' }}</span></td>
+                <td dir="ltr">{{ user.phone || '-' }}</td>
+                <td>{{ user.email || '-' }}</td>
+                <td class="font-semibold">{{ user.name }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="empty-table-cell"><app-empty-state icon="fa-users" title="لا توجد نتائج" description="غيّر البحث أو عوامل التصفية لعرض مستخدمين آخرين."></app-empty-state></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (!isLoading() && filteredUsers().length > 0) {
+      <div class="table-shell__footer">
+        <p class="text-sm text-base-content/70">
+          عرض {{ ((currentPage() - 1) * itemsPerPage) + 1 }}-{{
+            Math.min(currentPage() * itemsPerPage, filteredUsers().length)
+          }} من {{ filteredUsers().length }}
+        </p>
+        <div class="join">
+          <button type="button" class="btn join-item btn-sm" [disabled]="currentPage() === 1" (click)="previousPage()">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          @for (page of [].constructor(totalPages()); track $index) {
+            <button
+              type="button"
+              class="btn join-item btn-sm"
+              [class.btn-active]="currentPage() === $index + 1"
+              (click)="goToPage($index + 1)"
+            >
+              {{ $index + 1 }}
+            </button>
+          }
+          <button type="button" class="btn join-item btn-sm" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        </div>
+      </div>
+    }
+  </section>
+</div>
+
+@if (showViewModal() && selectedUser()) {
+  <div class="modal modal-open">
+    <div class="modal-box max-w-3xl" dir="rtl">
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-bold">{{ selectedUser()!.name }}</h2>
+          <p class="text-base-content/60">#{{ selectedUser()!.id }}</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost" (click)="closeViewModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="text-sm text-base-content/60">البريد</p>
+          <p class="font-semibold">{{ selectedUser()!.email || '-' }}</p>
+        </div>
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="text-sm text-base-content/60">الهاتف</p>
+          <p class="font-semibold" dir="ltr">{{ selectedUser()!.phone || '-' }}</p>
+        </div>
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="text-sm text-base-content/60">الدور</p>
+          <span class="badge mt-2" [ngClass]="roleBadgeClass(selectedUser()!.role)">{{ selectedUser()!.role }}</span>
+        </div>
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="text-sm text-base-content/60">الحالة</p>
+          <span class="badge mt-2 text-white" [ngClass]="statusBadgeClass(selectedUser()!.status)">
+            {{ statusText(selectedUser()!.status) }}
+          </span>
+        </div>
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="text-sm text-base-content/60">المدينة</p>
+          <p class="font-semibold">{{ selectedUser()!.city || '-' }}</p>
+        </div>
+        <div class="rounded-lg bg-base-200 p-4">
+          <p class="text-sm text-base-content/60">تاريخ الإنشاء</p>
+          <p class="font-semibold">{{ selectedUser()!.createdAt }}</p>
+        </div>
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-primary text-white" (click)="openEditModal(selectedUser()!)">
+          <i class="fas fa-pen"></i>
+          تعديل
+        </button>
+        <button type="button" class="btn" [class.btn-warning]="selectedUser()!.status === 'active'" [class.btn-success]="selectedUser()!.status === 'blocked'" (click)="toggleStatus(selectedUser()!)">
+          {{ selectedUser()!.status === 'active' ? 'حظر المستخدم' : 'تفعيل المستخدم' }}
+        </button>
+        <button type="button" class="btn btn-error text-white" (click)="openDeleteModal(selectedUser()!)">
+          حذف
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeViewModal()"></div>
+  </div>
+}
+
+@if (showFormModal()) {
+  <div class="modal modal-open">
+    <div class="modal-box max-w-4xl" dir="rtl">
+      <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-2xl font-bold">{{ editingUser() ? 'تعديل مستخدم' : 'إضافة مستخدم' }}</h2>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost" (click)="closeFormModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form class="grid grid-cols-1 gap-4 md:grid-cols-2" (ngSubmit)="saveUser()">
+        <label class="form-control">
+          <span class="label-text mb-1">الاسم الكامل</span>
+          <input class="input input-bordered" name="name" [(ngModel)]="formData.name" required />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">البريد الإلكتروني</span>
+          <input class="input input-bordered" type="email" name="email" [(ngModel)]="formData.email" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">الاسم الأول</span>
+          <input class="input input-bordered" name="first_name" [(ngModel)]="formData.first_name" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">اسم العائلة</span>
+          <input class="input input-bordered" name="last_name" [(ngModel)]="formData.last_name" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">الهاتف</span>
+          <input class="input input-bordered" name="phone" [(ngModel)]="formData.phone" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">المدينة</span>
+          <input class="input input-bordered" name="city" [(ngModel)]="formData.city" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">الدور</span>
+          <select class="select select-bordered" name="role" [(ngModel)]="formData.role" required>
+            @for (role of availableRoles; track role) {
+              <option [value]="role">{{ role }}</option>
+            }
+          </select>
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">الحالة</span>
+          <select class="select select-bordered" name="status" [(ngModel)]="formData.status" required>
+            <option value="active">نشط</option>
+            <option value="blocked">محظور</option>
+          </select>
+        </label>
+        <label class="form-control md:col-span-2">
+          <span class="label-text mb-1">العنوان</span>
+          <input class="input input-bordered" name="address" [(ngModel)]="formData.address" />
+        </label>
+        <label class="form-control md:col-span-2">
+          <span class="label-text mb-1">{{ editingUser() ? 'كلمة مرور جديدة (اختياري)' : 'كلمة المرور' }}</span>
+          <input class="input input-bordered" type="password" name="password" [(ngModel)]="formData.password" [required]="!editingUser()" />
+        </label>
+
+        <div class="modal-action md:col-span-2">
+          <button type="button" class="btn btn-ghost" [disabled]="isSubmitting()" (click)="closeFormModal()">إلغاء</button>
+          <button type="submit" class="btn btn-primary text-white" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              <span class="loading loading-spinner loading-sm"></span>
+            }
+            حفظ
+          </button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-backdrop" (click)="closeFormModal()"></div>
+  </div>
+}
+
+@if (showDeleteModal() && selectedUser()) {
+  <div class="modal modal-open">
+    <div class="modal-box" dir="rtl">
+      <h3 class="text-2xl font-bold">تأكيد حذف المستخدم</h3>
+      <p class="py-4">هل تريد حذف حساب {{ selectedUser()!.name }}؟ لا يمكن التراجع عن هذا الإجراء.</p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-error text-white" [disabled]="isSubmitting()" (click)="confirmDelete()">
+          @if (isSubmitting()) {
+            <span class="loading loading-spinner loading-sm"></span>
+          }
+          حذف
+        </button>
+        <button type="button" class="btn btn-ghost" [disabled]="isSubmitting()" (click)="closeDeleteModal()">إلغاء</button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeDeleteModal()"></div>
+  </div>
+}

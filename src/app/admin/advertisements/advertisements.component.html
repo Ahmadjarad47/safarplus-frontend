@@ -1,0 +1,357 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="إدارة المحتوى" title="الإعلانات" description="نظّم الحملات الإعلانية وفترات العرض وحالة النشر.">
+    <button class="btn btn-primary" (click)="openCreateModal()"><i class="fas fa-plus"></i>إضافة إعلان</button>
+  </app-page-header>
+
+  <div class="page-toolbar">
+    <div class="page-toolbar__group page-toolbar__search">
+      <label class="input input-bordered flex w-full items-center gap-2">
+        <i class="fas fa-search text-base-content/35"></i>
+        <input type="text" class="grow" placeholder="ابحث بعنوان الإعلان أو وصفه" [value]="searchTerm()" (input)="onSearch($event)" />
+      </label>
+    </div>
+    <div class="page-toolbar__group">
+      <div class="page-toolbar__filters">
+        <button 
+          class="btn btn-sm"
+          [class.btn-primary]="statusFilter() === 'all'"
+          [class.btn-ghost]="statusFilter() !== 'all'"
+          (click)="setStatusFilter('all')">
+          الكل
+        </button>
+        <button 
+          class="btn btn-sm"
+          [class.btn-primary]="statusFilter() === 'active'"
+          [class.btn-ghost]="statusFilter() !== 'active'"
+          (click)="setStatusFilter('active')">
+          نشط
+        </button>
+        <button 
+          class="btn btn-sm"
+          [class.btn-primary]="statusFilter() === 'inactive'"
+          [class.btn-ghost]="statusFilter() !== 'inactive'"
+          (click)="setStatusFilter('inactive')">
+          غير نشط
+        </button>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="refreshAdvertisements()"><i class="fas fa-rotate"></i>تحديث</button>
+    </div>
+  </div>
+
+  @if (apiError()) {
+    <div class="alert alert-error mb-6">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{ apiError() }}</span>
+      <button type="button" class="btn btn-sm btn-ghost" (click)="refreshAdvertisements()">إعادة المحاولة</button>
+    </div>
+  }
+
+  <!-- Advertisements Table -->
+  <div class="table-shell">
+    <div class="card-body p-0">
+      <div class="table-shell__header"><div><h2 class="table-shell__title">قائمة الإعلانات</h2><p class="table-shell__description">جميع الإعلانات وفترات ظهورها وحالتها الحالية.</p></div><span class="table-shell__count">{{ totalCount() }} إعلان</span></div>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>إجراءات</th>
+              <th>تاريخ الانتهاء</th>
+              <th>تاريخ البدء</th>
+              <th>الحالة</th>
+              <th>الوصف</th>
+              <th>العنوان</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (isLoading()) {
+              <tr>
+                <td colspan="6" class="empty-table-cell">
+                  <div class="loading-state"><span class="loading loading-spinner"></span><span>جاري تحميل الإعلانات</span></div>
+                </td>
+              </tr>
+            } @else {
+            @for (ad of paginatedAdvertisements(); track ad.id) {
+              <tr>
+                <td>
+                  <div class="table-actions">
+                    <button class="btn table-action table-action--primary" aria-label="تعديل الإعلان" title="تعديل" (click)="editAdvertisement(ad)">
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn table-action table-action--danger" aria-label="حذف الإعلان" title="حذف" (click)="deleteAdvertisement(ad)">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+                <td>{{ ad.endDate }}</td>
+                <td>{{ ad.startDate }}</td>
+                <td>
+                  <span class="badge text-white" [ngClass]="statusClass(ad.status)">
+                    {{ statusText(ad.status) }}
+                  </span>
+                </td>
+                <td>
+                  <div class="max-w-xs truncate" [title]="ad.description">
+                    {{ ad.description }}
+                  </div>
+                </td>
+                <td>
+                  <div class="font-semibold">{{ ad.title }}</div>
+                </td>
+              </tr>
+            }
+            @empty {
+              <tr>
+                <td colspan="6" class="empty-table-cell">
+                  <app-empty-state icon="fa-bullhorn" title="لا توجد إعلانات" description="ستظهر الإعلانات هنا بعد إنشائها أو عند مطابقة عوامل التصفية."></app-empty-state>
+                </td>
+              </tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (totalCount() > 0 && !isLoading()) {
+      <div class="table-shell__footer">
+        <p class="text-sm text-base-content/70">
+          عرض {{ ((currentPage() - 1) * itemsPerPage() + 1) }}-{{ 
+            Math.min(currentPage() * itemsPerPage(), totalCount()) 
+          }} من {{ totalCount() }} نتيجة
+        </p>
+        <div class="join">
+          <button 
+            class="join-item btn btn-sm" 
+            [disabled]="currentPage() === 1"
+            (click)="previousPage()">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          @for (page of [].constructor(totalPages()); track $index) {
+            <button 
+              class="join-item btn btn-sm"
+              [class.btn-active]="currentPage() === $index + 1"
+              (click)="goToPage($index + 1)">
+              {{ $index + 1 }}
+            </button>
+          }
+          <button 
+            class="join-item btn btn-sm" 
+            [disabled]="currentPage() === totalPages()"
+            (click)="nextPage()">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Create/Edit Advertisement Modal -->
+  @if (showCreateModal()) {
+    <input type="checkbox" id="advertisement-modal" class="modal-toggle" [checked]="showCreateModal()" (change)="showCreateModal.set($event.target.checked)" />
+    <div class="modal" role="dialog">
+      <div class="modal-box max-w-3xl" dir="rtl">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="font-bold text-2xl">{{ editingAdvertisement ? 'تعديل الاعلان' : 'اضافة اعلان جديد' }}</h3>
+          <label for="advertisement-modal" class="btn btn-sm btn-circle btn-ghost" (click)="closeCreateModal()">
+            <i class="fas fa-times"></i>
+          </label>
+        </div>
+
+        <form (ngSubmit)="saveAdvertisement()" #adForm="ngForm">
+
+          @if (formModalError()) {
+            <div class="alert alert-warning mb-4">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>{{ formModalError() }}</span>
+            </div>
+          }
+
+          <!-- Title -->
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text font-semibold">العنوان</span>
+            </label>
+            <input 
+              type="text" 
+              class="input input-bordered" 
+              placeholder="ادخل العنوان هنا"
+              [(ngModel)]="formData.title"
+              name="title"
+              required
+            />
+          </div>
+
+          <!-- Description -->
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text font-semibold">الوصف</span>
+            </label>
+            <textarea 
+              class="textarea textarea-bordered h-24" 
+              placeholder="ادخل وصف الاعلان"
+              [(ngModel)]="formData.description"
+              name="description"
+              required
+            ></textarea>
+          </div>
+
+          <!-- Geographic Targeting -->
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text font-semibold">الاستهداف الجغرافي</span>
+            </label>
+            <input 
+              type="text" 
+              class="input input-bordered" 
+              placeholder="ادخل المنطقة المراد استهدافها"
+              [(ngModel)]="formData.geographicTarget"
+              name="geographicTarget"
+              required
+            />
+          </div>
+
+          <!-- Time Period -->
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text font-semibold">اختر المدة الزمنية</span>
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div>
+                <label class="label">
+                  <span class="label-text">من</span>
+                </label>
+                <div class="relative">
+                  <input 
+                    type="date" 
+                    class="input input-bordered w-full" 
+                    [(ngModel)]="formData.startDate"
+                    name="startDate"
+                    required
+                  />
+                  <i class="fas fa-calendar absolute left-3 top-3 text-base-content/50 pointer-events-none"></i>
+                </div>
+              </div>
+              <div>
+                <label class="label">
+                  <span class="label-text">إلى</span>
+                </label>
+                <div class="relative">
+                  <input 
+                    type="date" 
+                    class="input input-bordered w-full" 
+                    [(ngModel)]="formData.endDate"
+                    name="endDate"
+                    required
+                  />
+                  <i class="fas fa-calendar absolute left-3 top-3 text-base-content/50 pointer-events-none"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image Upload -->
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text font-semibold">اختر صورة العلان</span>
+            </label>
+            @if (!formData.imagePreview) {
+              <div class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center">
+                <input 
+                  type="file" 
+                  id="image-upload"
+                  class="hidden"
+                  accept="image/png,image/jpeg,image/jpg"
+                  (change)="onImageSelect($event)"
+                />
+                <label for="image-upload" class="cursor-pointer">
+                  <i class="fas fa-camera text-4xl text-base-content/50 mb-4"></i>
+                  <p class="text-sm text-base-content/70 mb-2">
+                    اختر الملفات او اسحبها وافلتها هنا
+                  </p>
+                  <p class="text-xs text-base-content/50">
+                    PNG أو JPG حتى تقريباً 10MB
+                  </p>
+                </label>
+              </div>
+            } @else {
+              <div class="flex items-center gap-4 p-4 border border-base-300 rounded-lg">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-image text-primary"></i>
+                    <span class="font-semibold truncate max-w-[12rem]" [title]="imageAttachmentLabel()">{{ imageAttachmentLabel() }}</span>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button 
+                    type="button"
+                    class="btn btn-xs btn-primary text-white" 
+                    (click)="viewImage(formData.imagePreview)">
+                    عرض
+                  </button>
+                  <button 
+                    type="button"
+                    class="btn btn-xs btn-error text-white" 
+                    (click)="removeImage()">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="modal-action">
+            <button type="submit" class="btn btn-primary btn-lg" [disabled]="isSubmitting()">
+              @if (isSubmitting()) {
+                <span class="loading loading-spinner loading-sm mr-2"></span>
+              }
+              {{ editingAdvertisement ? 'حفظ التغييرات' : 'إضافة الاعلان' }}
+            </button>
+            <label for="advertisement-modal" class="btn" (click)="closeCreateModal()">إلغاء</label>
+          </div>
+        </form>
+      </div>
+      <label class="modal-backdrop" for="advertisement-modal">Close</label>
+    </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (showDeleteModal() && deletingAdvertisement) {
+    <input type="checkbox" id="delete-modal" class="modal-toggle" [checked]="showDeleteModal()" (change)="showDeleteModal.set($event.target.checked)" />
+    <div class="modal" role="dialog">
+      <div class="modal-box" dir="rtl">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="font-bold text-2xl">حذف الاعلان</h3>
+          <label for="delete-modal" class="btn btn-sm btn-circle btn-ghost text-error" (click)="closeDeleteModal()">
+            <i class="fas fa-times"></i>
+          </label>
+        </div>
+
+        <div class="flex flex-col items-center text-center mb-6">
+          <div class="avatar placeholder mb-4">
+            <div class="bg-error text-error-content rounded-full w-20 h-20 flex items-center justify-center">
+              <i class="fas fa-exclamation-triangle text-4xl"></i>
+            </div>
+          </div>
+          <h4 class="text-xl font-bold mb-2">تأكيد الحذف</h4>
+          <p class="text-base-content/70">
+            هل أنت متأكد انك تريد حذف هذه الاعلان؟ لا يمكن التراجع عن هذا الأجراء.
+          </p>
+        </div>
+
+        <div class="modal-action">
+          <button class="btn btn-error text-white" [disabled]="isDeleting()" (click)="confirmDelete()">
+            @if (isDeleting()) {
+              <span class="loading loading-spinner loading-sm mr-2"></span>
+            } @else {
+            <i class="fas fa-trash mr-2"></i>
+            }
+            حذف هذه الاعلان
+          </button>
+          <label for="delete-modal" class="btn" (click)="closeDeleteModal()">إلغاء</label>
+        </div>
+      </div>
+      <label class="modal-backdrop" for="delete-modal">Close</label>
+    </div>
+  }
+</div>

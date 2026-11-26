@@ -1,0 +1,177 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="إعدادات التشغيل" title="مركز التحكم" description="إدارة الباقات وقواعد الأرباح والنقاط والإشعارات وصحة النظام.">
+    <button type="button" class="btn btn-outline" (click)="reloadCurrentTab()" [disabled]="isLoading()">
+      @if (isLoading()) {
+        <span class="loading loading-spinner loading-sm"></span>
+      } @else {
+        <i class="fas fa-rotate"></i>
+      }
+      تحديث
+    </button>
+  </app-page-header>
+
+  @if (notice()) {
+    <div class="alert alert-success mb-4"><span>{{ notice() }}</span></div>
+  }
+  @if (error()) {
+    <div class="alert alert-warning mb-4"><span>{{ error() }}</span></div>
+  }
+  @if (usingMockData()) {
+    <div class="alert alert-info mb-4"><span>بعض الأقسام تعرض بيانات تجريبية عند عدم توفر الخادم.</span></div>
+  }
+
+  <div class="tabs tabs-boxed mb-6 w-fit">
+    <button class="tab" [class.tab-active]="activeTab() === 'packages'" (click)="setTab('packages')">
+      <i class="fas fa-box-open"></i>
+      الباقات
+    </button>
+    <button class="tab" [class.tab-active]="activeTab() === 'rules'" (click)="setTab('rules')">
+      <i class="fas fa-sliders"></i>
+      القواعد
+    </button>
+    <button class="tab" [class.tab-active]="activeTab() === 'notifications'" (click)="setTab('notifications')">
+      <i class="fas fa-bell"></i>
+      الإشعارات
+    </button>
+    <button class="tab" [class.tab-active]="activeTab() === 'system'" (click)="setTab('system')">
+      <i class="fas fa-heart-pulse"></i>
+      النظام
+    </button>
+  </div>
+
+  @if (activeTab() === 'packages') {
+    <section class="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
+      <form class="card p-5" (ngSubmit)="savePackage()">
+        <div class="section-heading"><div><h2 class="section-heading__title">{{ packageForm.id ? 'تعديل باقة' : 'إضافة باقة' }}</h2><p class="section-heading__description">حدد اسم الباقة وحدود الإعلانات وسعر الاشتراك.</p></div></div>
+        <label class="form-control mb-3">
+          <span class="label-text mb-1">اسم الباقة</span>
+          <input class="input input-bordered" name="packageName" [(ngModel)]="packageForm.name" required />
+        </label>
+        <label class="form-control mb-3">
+          <span class="label-text mb-1">عدد الإعلانات</span>
+          <input class="input input-bordered" type="number" min="1" name="adLimit" [(ngModel)]="packageForm.adLimit" required />
+        </label>
+        <label class="form-control mb-5">
+          <span class="label-text mb-1">السعر</span>
+          <input class="input input-bordered" type="number" min="0" name="packagePrice" [(ngModel)]="packageForm.price" required />
+        </label>
+        <div class="flex gap-2">
+          <button class="btn btn-primary text-white" type="submit" [disabled]="isSubmitting()">حفظ</button>
+          <button class="btn btn-ghost" type="button" (click)="resetPackageForm()">إلغاء</button>
+        </div>
+      </form>
+
+      <div class="table-shell">
+        <div class="flex items-center justify-between border-b border-base-300 p-4">
+          <h2 class="text-xl font-bold">باقات الشركات</h2>
+          <span class="badge badge-primary">إجمالي الأسعار {{ totalPackageValue().toLocaleString() }}</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>إجراءات</th><th>السعر</th><th>الإعلانات</th><th>الباقة</th></tr></thead>
+            <tbody>
+              @for (item of packages(); track item.id) {
+                <tr>
+                  <td class="flex gap-2">
+                    <button class="btn btn-xs btn-outline" (click)="editPackage(item)">تعديل</button>
+                    <button class="btn btn-xs btn-error text-white" (click)="deletePackage(item.id)">حذف</button>
+                  </td>
+                  <td>{{ item.price.toLocaleString() }}</td>
+                  <td>{{ item.adLimit }}</td>
+                  <td class="font-semibold">{{ item.name }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  }
+
+  @if (activeTab() === 'rules') {
+    <section class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div class="rounded-lg bg-base-200 p-5 shadow-sm">
+        <h2 class="mb-4 text-xl font-bold">قواعد النقاط</h2>
+        <form class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4" (ngSubmit)="saveRule('points')">
+          <input class="input input-bordered" type="number" name="pMin" placeholder="من سعر" [(ngModel)]="pointsForm.minPrice" />
+          <input class="input input-bordered" type="number" name="pMax" placeholder="إلى سعر" [(ngModel)]="pointsForm.maxPrice" />
+          <input class="input input-bordered" type="number" name="points" placeholder="النقاط" [(ngModel)]="pointsForm.points" />
+          <button class="btn btn-primary text-white" type="submit">حفظ</button>
+        </form>
+        <table class="table table-zebra">
+          <tbody>
+            @for (rule of pointRules(); track rule.id) {
+              <tr>
+                <td><button class="btn btn-xs btn-outline" (click)="editRule(rule, 'points')">تعديل</button></td>
+                <td>{{ rule.points }} نقطة</td>
+                <td>{{ rule.minPrice.toLocaleString() }} - {{ rule.maxPrice.toLocaleString() }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rounded-lg bg-base-200 p-5 shadow-sm">
+        <h2 class="mb-4 text-xl font-bold">قواعد الأرباح</h2>
+        <form class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4" (ngSubmit)="saveRule('profits')">
+          <input class="input input-bordered" type="number" name="rMin" placeholder="من سعر" [(ngModel)]="profitsForm.minPrice" />
+          <input class="input input-bordered" type="number" name="rMax" placeholder="إلى سعر" [(ngModel)]="profitsForm.maxPrice" />
+          <input class="input input-bordered" type="number" name="percent" placeholder="النسبة" [(ngModel)]="profitsForm.percentage" />
+          <button class="btn btn-primary text-white" type="submit">حفظ</button>
+        </form>
+        <table class="table table-zebra">
+          <tbody>
+            @for (rule of profitRules(); track rule.id) {
+              <tr>
+                <td><button class="btn btn-xs btn-outline" (click)="editRule(rule, 'profits')">تعديل</button></td>
+                <td>{{ rule.percentage }}%</td>
+                <td>{{ rule.minPrice.toLocaleString() }} - {{ rule.maxPrice.toLocaleString() }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  @if (activeTab() === 'notifications') {
+    <section class="max-w-3xl rounded-lg bg-base-200 p-5 shadow-sm">
+      <h2 class="mb-4 text-xl font-bold">إرسال إشعار إداري</h2>
+      <form class="space-y-4" (ngSubmit)="sendNotification()">
+        <input class="input input-bordered w-full" name="title" placeholder="عنوان الإشعار" [(ngModel)]="notificationForm.title" required />
+        <textarea class="textarea textarea-bordered min-h-28 w-full" name="body" placeholder="نص الإشعار" [(ngModel)]="notificationForm.body" required></textarea>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <select class="select select-bordered" name="targetMode" [(ngModel)]="notificationForm.targetMode">
+            <option value="topic">Topic</option>
+            <option value="role">Role</option>
+            <option value="users">User IDs</option>
+          </select>
+          @if (notificationForm.targetMode === 'topic') {
+            <input class="input input-bordered" name="topic" placeholder="all-users" [(ngModel)]="notificationForm.topic" />
+          }
+          @if (notificationForm.targetMode === 'role') {
+            <input class="input input-bordered" name="role" placeholder="user / Admin / Transport" [(ngModel)]="notificationForm.role" />
+          }
+          @if (notificationForm.targetMode === 'users') {
+            <input class="input input-bordered" name="userIds" placeholder="1, 2, 3" [(ngModel)]="notificationForm.userIds" />
+          }
+        </div>
+        <button class="btn btn-primary text-white" type="submit" [disabled]="isSubmitting()">إرسال الإشعار</button>
+      </form>
+    </section>
+  }
+
+  @if (activeTab() === 'system') {
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      @for (check of healthChecks(); track check.label) {
+        <div class="rounded-lg bg-base-200 p-5 shadow-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="font-bold">{{ check.label }}</h3>
+            <span class="badge text-white" [ngClass]="statusClass(check.status)">{{ check.status }}</span>
+          </div>
+          <p class="text-sm text-base-content/70">{{ check.detail }}</p>
+        </div>
+      }
+    </section>
+  }
+</div>

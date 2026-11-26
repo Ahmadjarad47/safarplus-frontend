@@ -1,0 +1,476 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header
+    eyebrow="إدارة المبيعات"
+    title="الحجوزات"
+    description="راجع حجوزات الركاب والمقاعد وحالة كل حجز ضمن سجل واحد.">
+    <button class="btn btn-primary" (click)="openCreateModal()">
+      <i class="fas fa-plus"></i>
+      حجز جديد
+    </button>
+  </app-page-header>
+
+  <div class="page-toolbar">
+    <div class="page-toolbar__group page-toolbar__search">
+      <label class="input input-bordered flex w-full items-center gap-2">
+        <i class="fas fa-search text-base-content/35"></i>
+        <input type="text" class="grow" placeholder="ابحث بالراكب أو الرحلة" [value]="stateService.searchTerm()" (input)="onSearch($event)" />
+      </label>
+    </div>
+    <div class="page-toolbar__group">
+      <span class="table-shell__count">{{ stateService.totalBookings() }} حجز</span>
+      <button class="btn btn-ghost btn-sm" (click)="refreshBookings()"><i class="fas fa-rotate"></i>تحديث</button>
+    </div>
+  </div>
+
+  @if (apiError()) {
+    <div class="alert alert-error mb-6">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{ apiError() }}</span>
+      <button type="button" class="btn btn-sm btn-ghost" (click)="loadBookings()">إعادة المحاولة</button>
+    </div>
+  }
+
+  <!-- Bookings Table -->
+  <div class="table-shell">
+    <div class="card-body p-0">
+      <div class="table-shell__header">
+        <div><h2 class="table-shell__title">قائمة الحجوزات</h2><p class="table-shell__description">آخر الحجوزات وبيانات الركاب والمقاعد المرتبطة بها.</p></div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>إجراءات</th>
+              <th>المقعد</th>
+              <th>الراكب</th>
+              <th>تفاصيل الرحلة</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (isLoading()) {
+              <tr>
+                <td colspan="5" class="empty-table-cell">
+                  <div class="loading-state"><span class="loading loading-spinner"></span><span>جاري تحميل الحجوزات</span></div>
+                </td>
+              </tr>
+            } @else {
+              @for (booking of stateService.paginatedBookings(); track booking.id) {
+                <tr>
+                  <td>
+                    <div class="table-actions">
+                      <button class="btn table-action" aria-label="عرض الحجز" title="عرض" (click)="viewBooking(booking.id)">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button class="btn table-action table-action--primary" aria-label="تعديل الحجز" title="تعديل" (click)="editBooking(booking.id)">
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button class="btn table-action table-action--danger" aria-label="حذف الحجز" title="حذف" (click)="deleteBooking(booking.id)">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="font-mono text-lg">{{ booking.seat.number }}</td>
+                  <td>{{ booking.passenger.name }}</td>
+                  <td>
+                    <div>
+                      <div class="font-semibold">{{ booking.trip.plan }}</div>
+                      <div class="text-sm text-base-content/70">{{ booking.trip.tripDate }}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge badge-lg text-white" [ngClass]="statusBadgeClass(booking.status)">
+                      {{ statusText(booking.status) }}
+                    </span>
+                  </td>
+                </tr>
+              }
+              @empty {
+                <tr>
+                  <td colspan="5" class="empty-table-cell">
+                    <app-empty-state icon="fa-ticket" title="لا توجد حجوزات" description="ستظهر الحجوزات هنا بمجرد إنشائها أو عند مطابقة البحث."></app-empty-state>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (stateService.totalBookings() > 0 && !isLoading()) {
+      <div class="table-shell__footer">
+        <p class="text-sm text-base-content/70">
+          عرض {{ ((stateService.currentPage() - 1) * stateService.itemsPerPage() + 1) }}-{{ 
+            Math.min(stateService.currentPage() * stateService.itemsPerPage(), stateService.totalBookings()) 
+          }} من {{ stateService.totalBookings() }} نتيجة
+        </p>
+        <div class="join">
+          <button 
+            class="join-item btn btn-sm" 
+            [disabled]="stateService.currentPage() === 1"
+            (click)="previousPage()">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          @for (page of [].constructor(stateService.totalPages()); track $index) {
+            <button 
+              class="join-item btn btn-sm"
+              [class.btn-active]="stateService.currentPage() === $index + 1"
+              (click)="goToPage($index + 1)">
+              {{ $index + 1 }}
+            </button>
+          }
+          <button 
+            class="join-item btn btn-sm" 
+            [disabled]="stateService.currentPage() === stateService.totalPages()"
+            (click)="nextPage()">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Booking Details Modal -->
+  @if (selectedBooking) {
+    <input type="checkbox" id="booking-modal" class="modal-toggle" [checked]="showDetailsModal()" (change)="showDetailsModal.set($event.target.checked)" />
+    <div class="modal" role="dialog">
+      <div class="modal-box max-w-5xl" dir="rtl">
+        <h3 class="font-bold text-2xl mb-6">تفاصيل الحجز</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Right Column -->
+          <div class="space-y-4">
+            <!-- Booking Information -->
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h4 class="card-title text-lg mb-4">معلومات الحجز</h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-sm text-base-content/70">رقم الحجز</label>
+                    <p class="font-mono text-lg">{{ selectedBooking.bookingNumber }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">حالة الحجز</label>
+                    <div class="mt-1">
+                      <span class="badge badge-lg" [ngClass]="statusBadgeClass(selectedBooking.status)">
+                        {{ statusText(selectedBooking.status) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">تاريخ الحجز</label>
+                    <p class="text-lg">{{ selectedBooking.bookingDate }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">طريقة الدفع</label>
+                    <p class="text-lg">{{ selectedBooking.paymentMethod }}</p>
+                  </div>
+                  @if (selectedBooking.paymentStatus) {
+                    <div>
+                      <label class="text-sm text-base-content/70">حالة الدفع</label>
+                      <p class="text-lg">{{ paymentStatusLabel(selectedBooking.paymentStatus) }}</p>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Trip Information -->
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h4 class="card-title text-lg mb-4">معلومات الرحلة</h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-sm text-base-content/70">خطة الرحلة</label>
+                    <p class="text-lg">{{ selectedBooking.trip.plan }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">رقم الباص</label>
+                    <p class="text-lg font-mono">{{ selectedBooking.trip.busNumber }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">تاريخ الرحلة</label>
+                    <p class="text-lg">{{ selectedBooking.trip.tripDate }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">وقت الرحلة</label>
+                    <p class="text-lg">{{ selectedBooking.trip.tripTime }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Seat Information -->
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h4 class="card-title text-lg mb-4">معلومات المقعد</h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-sm text-base-content/70">رقم المقعد</label>
+                    <p class="text-2xl font-mono font-bold">{{ selectedBooking.seat.number }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">نوع المقعد</label>
+                    <p class="text-lg">{{ seatTypeText(selectedBooking.seat.type) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Left Column -->
+          <div class="space-y-4">
+            <!-- Passenger Information -->
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h4 class="card-title text-lg mb-4">معلومات الراكب</h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-sm text-base-content/70">اسم الراكب</label>
+                    <p class="text-lg">{{ selectedBooking.passenger.name }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">رقم الهاتف</label>
+                    <p class="text-lg font-mono">{{ selectedBooking.passenger.phone }}</p>
+                  </div>
+                  <div>
+                    <label class="text-sm text-base-content/70">البريد الالكتروني</label>
+                    <p class="text-lg">{{ selectedBooking.passenger.email }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Amount -->
+            <div class="card bg-base-100 shadow">
+              <div class="card-body">
+                <h4 class="card-title text-lg mb-4">المبلغ الاجمالي</h4>
+                <div>
+                  <label class="text-sm text-base-content/70">المبلغ</label>
+                  <p class="text-3xl font-bold text-primary mt-2">
+                    {{ selectedBooking.totalAmount.toLocaleString() }} ل.س
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button class="btn btn-primary" (click)="editBooking(selectedBooking.id)">
+            <i class="fas fa-edit mr-2"></i>
+            تعديل الحجز
+          </button>
+          <label for="booking-modal" class="btn" (click)="closeDetailsModal()">إغلاق</label>
+        </div>
+      </div>
+      <label class="modal-backdrop" for="booking-modal">Close</label>
+    </div>
+  }
+
+  <!-- Create/Edit Booking Modal -->
+  @if (showEditModal()) {
+    <input type="checkbox" id="edit-booking-modal" class="modal-toggle" [checked]="showEditModal()" (change)="showEditModal.set($event.target.checked)" />
+    <div class="modal" role="dialog">
+      <div class="modal-box max-w-3xl" dir="rtl">
+        <h3 class="font-bold text-2xl mb-6">{{ editingBooking ? 'تعديل الحجز' : 'حجز جديد' }}</h3>
+        
+        <form (ngSubmit)="saveBooking()" #bookingForm="ngForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Booking Info -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">رقم الحجز</span>
+              </label>
+              <input 
+                type="text" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.bookingNumber"
+                name="bookingNumber"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">تاريخ الحجز</span>
+              </label>
+              <input 
+                type="date" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.bookingDate"
+                name="bookingDate"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">حالة الحجز</span>
+              </label>
+              <select class="select select-bordered" [(ngModel)]="formData.status" name="status" required>
+                <option value="confirmed">مؤكد</option>
+                <option value="pending">قيد الانتظار</option>
+                <option value="canceled">ملغي</option>
+              </select>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">طريقة الدفع</span>
+              </label>
+              <select class="select select-bordered" [(ngModel)]="formData.paymentMethod" name="paymentMethod" required>
+                @for (method of paymentMethods; track method) {
+                  <option [value]="method">{{ method }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Passenger Info -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">اسم الراكب</span>
+              </label>
+              <input 
+                type="text" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.passenger.name"
+                name="passengerName"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">رقم الهاتف</span>
+              </label>
+              <input 
+                type="tel" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.passenger.phone"
+                name="passengerPhone"
+                required
+              />
+            </div>
+
+            <div class="form-control md:col-span-2">
+              <label class="label">
+                <span class="label-text">البريد الالكتروني</span>
+              </label>
+              <input 
+                type="email" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.passenger.email"
+                name="passengerEmail"
+                required
+              />
+            </div>
+
+            <!-- Trip Info -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">خطة الرحلة</span>
+              </label>
+              <input 
+                type="text" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.trip.plan"
+                name="tripPlan"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">رقم الباص</span>
+              </label>
+              <input 
+                type="text" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.trip.busNumber"
+                name="busNumber"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">تاريخ الرحلة</span>
+              </label>
+              <input 
+                type="date" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.trip.tripDate"
+                name="tripDate"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">وقت الرحلة</span>
+              </label>
+              <input 
+                type="time" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.trip.tripTime"
+                name="tripTime"
+                required
+              />
+            </div>
+
+            <!-- Seat Info -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">رقم المقعد</span>
+              </label>
+              <input 
+                type="number" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.seat.number"
+                name="seatNumber"
+                required
+              />
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">نوع المقعد</span>
+              </label>
+              <select class="select select-bordered" [(ngModel)]="formData.seat.type" name="seatType" required>
+                <option value="normal">عادي</option>
+                <option value="vip">VIP</option>
+                <option value="business">بزنس</option>
+              </select>
+            </div>
+
+            <!-- Amount -->
+            <div class="form-control md:col-span-2">
+              <label class="label">
+                <span class="label-text">المبلغ الاجمالي (ل.س)</span>
+              </label>
+              <input 
+                type="number" 
+                class="input input-bordered" 
+                [(ngModel)]="formData.totalAmount"
+                name="totalAmount"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="modal-action">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save mr-2"></i>
+              حفظ
+            </button>
+            <label for="edit-booking-modal" class="btn" (click)="cancelEdit()">إلغاء</label>
+          </div>
+        </form>
+      </div>
+      <label class="modal-backdrop" for="edit-booking-modal">Close</label>
+    </div>
+  }
+</div>

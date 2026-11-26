@@ -1,0 +1,106 @@
+<div class="page-shell dashboard-page" dir="rtl">
+  @if (loadError()) {
+    <div class="alert alert-warning"><i class="fas fa-triangle-exclamation"></i><span>{{ loadError() }}</span></div>
+  }
+
+  <app-page-header eyebrow="إدارة المنصة" title="ملخص أداء سفر بلس" description="صورة موحدة عن الدخل والحجوزات والرحلات والشركات المسجلة على المنصة.">
+    <a routerLink="/super-admin/governance" class="btn btn-primary"><i class="fas fa-shield-halved"></i><span>مركز الحوكمة</span></a>
+  </app-page-header>
+
+  <section class="metric-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="مؤشرات أداء المنصة">
+    <app-stat-card label="إجمالي الدخل" [value]="formatIncome()" suffix="ل.س" description="إجمالي الدخل عبر المنصة" iconClass="fas fa-wallet" tone="primary" [highlighted]="true" />
+    <app-stat-card label="إجمالي الحجوزات" [value]="stateService.summaryStats().totalBookings.toLocaleString()" description="حجز مسجل" iconClass="fas fa-ticket" tone="info" />
+    <app-stat-card label="إجمالي الرحلات" [value]="stateService.summaryStats().totalTrips.toLocaleString()" description="رحلة ضمن الشركات" iconClass="fas fa-route" tone="warning" />
+    <app-stat-card label="الشركات" [value]="stateService.summaryStats().totalCompanies.toLocaleString()" description="شركة مسجلة" iconClass="fas fa-building" tone="neutral" />
+  </section>
+
+  <div class="dashboard-primary-grid">
+    <section class="content-card analytics-panel">
+      <header class="section-card__header">
+        <div><h2>الحجوزات حسب الأسبوع</h2><p>التوزيع اليومي للحجوزات المسجلة</p></div>
+        <span class="section-card__tag"><i class="fas fa-chart-column"></i> أسبوعي</span>
+      </header>
+
+      <div class="chart-grid" role="img" aria-label="مخطط الحجوزات الأسبوعي">
+        @for (bar of chartBars(); track bar.day) {
+          <div class="chart-column">
+            <div class="chart-column__track">
+              <div class="chart-bar tooltip tooltip-top" [style.height.%]="bar.height" [attr.data-tip]="bar.value + ' حجز'" [style.min-height.px]="8"></div>
+            </div>
+            <span>{{ bar.day }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <aside class="content-card activity-panel">
+      <header class="section-card__header">
+        <div><h2>النشاط الأخير</h2><p>آخر الإشعارات الواردة للمنصة</p></div>
+        <span class="section-card__count">{{ stateService.notificationCount() }}</span>
+      </header>
+
+      @if (isLoading()) {
+        <div class="loading-state"><span class="loading loading-spinner loading-md"></span><span>جارٍ تحميل النشاط</span></div>
+      } @else {
+        <div class="activity-list">
+          @for (notification of stateService.notifications(); track notification.id) {
+            <article class="activity-item">
+              <div class="activity-item__avatar">
+                <img [src]="notification.passengerAvatar" [alt]="notification.passengerName" />
+              </div>
+              <div class="activity-item__content">
+                <p>{{ notification.passengerName }}</p>
+                <small>{{ notification.route }}</small>
+              </div>
+              <time>{{ notification.date }}</time>
+            </article>
+          } @empty {
+            <div class="loading-state"><i class="far fa-bell-slash text-2xl text-base-content/25"></i><span>لا توجد إشعارات حالياً</span></div>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+
+  <section class="table-shell dashboard-table">
+    <div class="table-shell__header">
+      <div><h2 class="table-shell__title">أحدث الحجوزات</h2><p class="table-shell__description">الحجوزات الأخيرة عبر شركات المنصة</p></div>
+      <span class="table-shell__count">{{ stateService.totalBookings() }} حجز</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead><tr><th>اسم الراكب</th><th>الوجهة</th><th>التاريخ</th><th>الحالة</th></tr></thead>
+        <tbody>
+          @if (isLoading()) {
+            <tr><td colspan="4" class="empty-table-cell"><div class="loading-state"><span class="loading loading-spinner loading-md"></span></div></td></tr>
+          } @else {
+            @for (booking of stateService.paginatedBookings(); track booking.id) {
+              <tr>
+                <td class="font-semibold">{{ booking.passenger.name }}</td>
+                <td>{{ booking.trip.plan }}</td>
+                <td>{{ booking.trip.tripDate }}</td>
+                <td><span class="badge" [ngClass]="statusBadgeClass(booking.status)">{{ statusText(booking.status) }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="empty-table-cell"><div class="loading-state"><i class="fas fa-calendar-xmark text-2xl text-base-content/25"></i><span>لا توجد حجوزات لعرضها حالياً</span></div></td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-shell__footer">
+      @if (stateService.totalBookings() > 0) {
+        <p class="table-results">عرض {{ ((stateService.currentPage() - 1) * stateService.itemsPerPage() + 1) }}-{{ Math.min(stateService.currentPage() * stateService.itemsPerPage(), stateService.totalBookings()) }} من {{ stateService.totalBookings() }}</p>
+      } @else { <p class="table-results">0 نتيجة</p> }
+      <div class="join">
+        <button class="join-item btn btn-sm" aria-label="الصفحة السابقة" [disabled]="stateService.currentPage() === 1" (click)="previousPage()"><i class="fas fa-chevron-right"></i></button>
+        @for (page of [].constructor(stateService.totalPages()); track $index) {
+          <button class="join-item btn btn-sm" [class.btn-active]="stateService.currentPage() === $index + 1" (click)="goToPage($index + 1)">{{ $index + 1 }}</button>
+        }
+        <button class="join-item btn btn-sm" aria-label="الصفحة التالية" [disabled]="stateService.currentPage() === stateService.totalPages()" (click)="nextPage()"><i class="fas fa-chevron-left"></i></button>
+      </div>
+    </div>
+  </section>
+</div>

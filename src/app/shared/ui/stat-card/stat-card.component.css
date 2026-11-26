@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.stat-card {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  padding: 1.15rem;
+  box-shadow: var(--app-shadow-sm);
+}
+
+.stat-card::after {
+  position: absolute;
+  inset-block-start: -3.25rem;
+  inset-inline-end: -3.5rem;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stat-color) 7%, transparent);
+  content: '';
+  pointer-events: none;
+}
+
+.stat-card--highlighted {
+  border-color: color-mix(in srgb, var(--stat-color) 24%, var(--app-border));
+  background: linear-gradient(145deg, var(--app-surface), color-mix(in srgb, var(--stat-color) 5%, white));
+}
+
+.stat-card[data-tone='primary'] { --stat-color: var(--app-primary); --stat-soft: var(--app-primary-soft); }
+.stat-card[data-tone='info'] { --stat-color: var(--app-info); --stat-soft: var(--app-info-soft); }
+.stat-card[data-tone='warning'] { --stat-color: var(--app-warning); --stat-soft: var(--app-warning-soft); }
+.stat-card[data-tone='neutral'] { --stat-color: var(--app-neutral); --stat-soft: var(--app-neutral-soft); }
+
+.stat-card__heading {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.stat-card__icon {
+  display: grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.72rem;
+  background: var(--stat-soft);
+  color: var(--stat-color);
+  font-size: 0.92rem;
+}
+
+.stat-card__label {
+  min-width: 0;
+  color: var(--app-muted);
+  font-size: 0.79rem;
+  font-weight: 700;
+}
+
+.stat-card__value {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-top: 0.95rem;
+  color: var(--app-text-strong);
+  font-size: clamp(1.55rem, 2.3vw, 2rem);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+
+.stat-card__value small {
+  color: var(--app-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.stat-card__description {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.45rem;
+  overflow: hidden;
+  color: var(--app-muted-light);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .stat-card { padding: 1rem; }
+  .stat-card__value { margin-top: 0.8rem; }
+}

@@ -1,0 +1,330 @@
+<div class="page-shell" dir="rtl">
+  <app-page-header eyebrow="الإشراف والصلاحيات" title="مركز الحوكمة" description="تحكم مركزي بالصلاحيات والنشاط والموافقات والاشتراكات والبلاغات والتنبيهات.">
+      <button type="button" class="btn btn-outline" (click)="addActivitySnapshot()">
+        <i class="fas fa-rotate"></i>
+        تحديث مباشر
+      </button>
+      <button type="button" class="btn btn-ghost" (click)="resetDemoData()">
+        <i class="fas fa-rotate-left"></i>
+        إعادة البيانات
+      </button>
+  </app-page-header>
+
+  @if (notice()) {
+    <div class="alert alert-success mb-4">
+      <i class="fas fa-circle-check"></i>
+      <span>{{ notice() }}</span>
+    </div>
+  }
+
+  <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="compact-stat">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-base-content/60">موافقات تنتظر</span>
+        <i class="fas fa-stamp text-primary"></i>
+      </div>
+      <p class="mt-2 text-3xl font-bold">{{ openApprovals() }}</p>
+    </div>
+    <div class="compact-stat">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-base-content/60">بلاغات مفتوحة</span>
+        <i class="fas fa-headset text-warning"></i>
+      </div>
+      <p class="mt-2 text-3xl font-bold">{{ openReports() }}</p>
+    </div>
+    <div class="compact-stat">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-base-content/60">تنبيهات نشطة</span>
+        <i class="fas fa-bell text-error"></i>
+      </div>
+      <p class="mt-2 text-3xl font-bold">{{ activeAlerts() }}</p>
+    </div>
+    <div class="compact-stat">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-base-content/60">شركات تحتاج متابعة</span>
+        <i class="fas fa-building-circle-exclamation text-info"></i>
+      </div>
+      <p class="mt-2 text-3xl font-bold">{{ watchedCompanies() }}</p>
+    </div>
+  </section>
+
+  <div class="mb-6 overflow-x-auto">
+    <div class="tabs tabs-boxed w-max">
+      <button class="tab" [class.tab-active]="activeTab() === 'roles'" (click)="setTab('roles')">
+        <i class="fas fa-user-shield"></i>
+        الصلاحيات
+      </button>
+      <button class="tab" [class.tab-active]="activeTab() === 'activity'" (click)="setTab('activity')">
+        <i class="fas fa-clock-rotate-left"></i>
+        سجل النشاط
+      </button>
+      <button class="tab" [class.tab-active]="activeTab() === 'monitoring'" (click)="setTab('monitoring')">
+        <i class="fas fa-chart-line"></i>
+        مراقبة مباشرة
+      </button>
+      <button class="tab" [class.tab-active]="activeTab() === 'approvals'" (click)="setTab('approvals')">
+        <i class="fas fa-check-to-slot"></i>
+        الموافقات
+      </button>
+      <button class="tab" [class.tab-active]="activeTab() === 'subscriptions'" (click)="setTab('subscriptions')">
+        <i class="fas fa-layer-group"></i>
+        الاشتراكات
+      </button>
+      <button class="tab" [class.tab-active]="activeTab() === 'reports'" (click)="setTab('reports')">
+        <i class="fas fa-flag"></i>
+        البلاغات
+      </button>
+      <button class="tab" [class.tab-active]="activeTab() === 'alerts'" (click)="setTab('alerts')">
+        <i class="fas fa-wand-magic-sparkles"></i>
+        التنبيهات الذكية
+      </button>
+    </div>
+  </div>
+
+  @if (activeTab() === 'roles') {
+    <section class="grid grid-cols-1 gap-6 xl:grid-cols-[320px_1fr]">
+      <aside class="rounded-lg bg-base-200 p-4 shadow-sm">
+        <h2 class="mb-4 text-xl font-bold">الأدوار</h2>
+        <div class="space-y-2">
+          @for (role of roles(); track role.id) {
+            <button
+              type="button"
+              class="w-full rounded-lg border border-base-300 bg-base-100 p-3 text-right transition hover:border-primary"
+              [class.border-primary]="selectedRoleId === role.id"
+              (click)="selectedRoleId = role.id">
+              <div class="flex items-center justify-between">
+                <span class="font-bold">{{ role.name }}</span>
+                <span class="badge" [ngClass]="role.active ? 'badge-success' : 'badge-warning'">{{ role.active ? 'فعال' : 'موقف' }}</span>
+              </div>
+              <p class="mt-1 text-xs text-base-content/60">{{ role.code }} · {{ role.usersCount }} مستخدم</p>
+            </button>
+          }
+        </div>
+      </aside>
+
+      @if (selectedRole(); as role) {
+        <div class="rounded-lg bg-base-200 p-5 shadow-sm">
+          <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 class="text-2xl font-bold">{{ role.name }}</h2>
+              <p class="mt-1 text-sm text-base-content/60">{{ role.description }}</p>
+            </div>
+            <button type="button" class="btn btn-outline" (click)="toggleRole(role)">
+              <i class="fas" [ngClass]="role.active ? 'fa-pause' : 'fa-play'"></i>
+              {{ role.active ? 'إيقاف الدور' : 'تفعيل الدور' }}
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            @for (permission of permissions(); track permission.key) {
+              <label class="flex min-h-24 cursor-pointer items-start gap-3 rounded-lg bg-base-100 p-4">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-primary mt-1"
+                  [checked]="role.permissions.includes(permission.key)"
+                  (change)="togglePermission(role, permission.key)" />
+                <span>
+                  <span class="block font-semibold">{{ permission.label }}</span>
+                  <span class="text-xs text-base-content/50">{{ permission.category }}</span>
+                </span>
+              </label>
+            }
+          </div>
+        </div>
+      }
+    </section>
+  }
+
+  @if (activeTab() === 'activity') {
+    <section class="rounded-lg bg-base-200 p-5 shadow-sm">
+      <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <h2 class="text-xl font-bold">سجل نشاط المستخدمين</h2>
+        <input class="input input-bordered w-full md:w-80" placeholder="بحث بالاسم، الدور، IP، أو الإجراء" [(ngModel)]="activityFilter" />
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>الخطورة</th>
+              <th>الوقت</th>
+              <th>IP</th>
+              <th>الهدف</th>
+              <th>الإجراء</th>
+              <th>الدور</th>
+              <th>المستخدم</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of filteredActivity(); track item.id) {
+              <tr>
+                <td><span class="badge" [ngClass]="severityClass(item.severity)">{{ item.severity }}</span></td>
+                <td>{{ item.time }}</td>
+                <td dir="ltr">{{ item.ip }}</td>
+                <td>{{ item.target }}</td>
+                <td>{{ item.action }}</td>
+                <td>{{ item.role }}</td>
+                <td class="font-semibold">{{ item.user }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  @if (activeTab() === 'monitoring') {
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      @for (metric of metrics(); track metric.id) {
+        <div class="rounded-lg bg-base-200 p-5 shadow-sm">
+          <div class="mb-4 flex items-center justify-between">
+            <i class="{{ metric.icon }} text-2xl" [ngClass]="metricClass(metric.status)"></i>
+            <span class="badge" [ngClass]="metric.status === 'good' ? 'badge-success' : metric.status === 'watch' ? 'badge-warning' : 'badge-error'">
+              {{ metric.trend }}
+            </span>
+          </div>
+          <h3 class="text-sm text-base-content/60">{{ metric.label }}</h3>
+          <p class="mt-1 text-3xl font-bold">{{ metric.value }}</p>
+          <p class="mt-3 text-sm text-base-content/60">{{ metric.detail }}</p>
+        </div>
+      }
+    </section>
+  }
+
+  @if (activeTab() === 'approvals') {
+    <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      @for (item of approvals(); track item.id) {
+        <article class="rounded-lg bg-base-200 p-5 shadow-sm">
+          <div class="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <span class="badge badge-outline">{{ item.type === 'company' ? 'شركة' : 'إعلان' }}</span>
+              <h3 class="mt-2 text-xl font-bold">{{ item.title }}</h3>
+            </div>
+            <span class="badge" [ngClass]="statusClass(item.status)">{{ item.status }}</span>
+          </div>
+          <p class="text-sm text-base-content/60">{{ item.owner }}</p>
+          <p class="mt-2 text-sm">{{ item.notes }}</p>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-xs text-base-content/50">{{ item.submittedAt }}</span>
+            <span class="badge" [ngClass]="severityClass(item.risk)">risk {{ item.risk }}</span>
+          </div>
+          @if (item.status === 'pending') {
+            <div class="mt-4 flex gap-2">
+              <button type="button" class="btn btn-sm btn-success text-white" (click)="setApprovalStatus(item, 'approved')">موافقة</button>
+              <button type="button" class="btn btn-sm btn-error text-white" (click)="setApprovalStatus(item, 'rejected')">رفض</button>
+            </div>
+          }
+        </article>
+      }
+    </section>
+  }
+
+  @if (activeTab() === 'subscriptions') {
+    <section class="rounded-lg bg-base-200 p-5 shadow-sm">
+      <h2 class="mb-4 text-xl font-bold">إدارة الاشتراكات وحدود الشركات</h2>
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>إجراءات</th>
+              <th>التجديد</th>
+              <th>السعر</th>
+              <th>الإعلانات</th>
+              <th>الرحلات</th>
+              <th>الحالة</th>
+              <th>الباقة</th>
+              <th>الشركة</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of subscriptions(); track item.id) {
+              <tr>
+                <td class="flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-xs btn-outline" (click)="setSubscriptionStatus(item, item.status === 'active' ? 'paused' : 'active')">
+                    {{ item.status === 'active' ? 'إيقاف' : 'تفعيل' }}
+                  </button>
+                  <button type="button" class="btn btn-xs btn-outline" (click)="increaseSubscriptionLimit(item, 'tripsLimit')">+ رحلات</button>
+                  <button type="button" class="btn btn-xs btn-outline" (click)="increaseSubscriptionLimit(item, 'adsLimit')">+ إعلانات</button>
+                </td>
+                <td>{{ item.renewalDate }}</td>
+                <td>{{ item.monthlyPrice.toLocaleString() }}</td>
+                <td>
+                  <progress class="progress progress-primary w-28" [value]="usagePercent(item.usedAds, item.adsLimit)" max="100"></progress>
+                  <span class="block text-xs">{{ item.usedAds }}/{{ item.adsLimit }}</span>
+                </td>
+                <td>
+                  <progress class="progress progress-primary w-28" [value]="usagePercent(item.usedTrips, item.tripsLimit)" max="100"></progress>
+                  <span class="block text-xs">{{ item.usedTrips }}/{{ item.tripsLimit }}</span>
+                </td>
+                <td><span class="badge" [ngClass]="statusClass(item.status)">{{ item.status }}</span></td>
+                <td>{{ item.plan }}</td>
+                <td class="font-semibold">{{ item.company }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  @if (activeTab() === 'reports') {
+    <section class="rounded-lg bg-base-200 p-5 shadow-sm">
+      <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <h2 class="text-xl font-bold">مركز البلاغات</h2>
+        <select class="select select-bordered w-full md:w-52" [(ngModel)]="reportFilter">
+          <option value="all">كل البلاغات</option>
+          <option value="user">بلاغات المستخدمين</option>
+          <option value="trip">بلاغات الرحلات</option>
+          <option value="payment">بلاغات الدفع</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        @for (item of filteredReports(); track item.id) {
+          <article class="rounded-lg bg-base-100 p-4">
+            <div class="mb-3 flex items-start justify-between">
+              <span class="badge badge-outline">{{ item.type }}</span>
+              <span class="badge" [ngClass]="severityClass(item.priority)">{{ item.priority }}</span>
+            </div>
+            <h3 class="text-lg font-bold">{{ item.subject }}</h3>
+            <p class="mt-2 text-sm text-base-content/60">{{ item.source }} · {{ item.assignee }}</p>
+            <p class="mt-1 text-xs text-base-content/50">{{ item.lastUpdate }}</p>
+            <div class="mt-4 flex gap-2">
+              <button type="button" class="btn btn-sm btn-success text-white" [disabled]="item.status === 'resolved'" (click)="resolveReport(item)">إغلاق</button>
+              <button type="button" class="btn btn-sm btn-outline" (click)="escalateReport(item)">تصعيد</button>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
+
+  @if (activeTab() === 'alerts') {
+    <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      @for (item of alerts(); track item.id) {
+        <article class="rounded-lg bg-base-200 p-5 shadow-sm">
+          <div class="mb-3 flex items-start justify-between gap-3">
+            <h3 class="text-xl font-bold">{{ item.title }}</h3>
+            <span class="badge" [ngClass]="severityClass(item.severity)">{{ item.severity }}</span>
+          </div>
+          <p class="text-sm">{{ item.body }}</p>
+          <div class="mt-4 rounded-lg bg-base-100 p-3 text-sm">
+            <p class="font-semibold">الشرط</p>
+            <p class="text-base-content/60">{{ item.trigger }}</p>
+          </div>
+          <div class="mt-3 rounded-lg bg-base-100 p-3 text-sm">
+            <p class="font-semibold">الإجراء المقترح</p>
+            <p class="text-base-content/60">{{ item.suggestedAction }}</p>
+          </div>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="badge" [ngClass]="statusClass(item.status)">{{ item.status }}</span>
+            <span class="text-sm text-base-content/60">{{ item.count }} حالة</span>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-success text-white" (click)="setAlertStatus(item, 'resolved')">حل</button>
+            <button type="button" class="btn btn-sm btn-outline" (click)="setAlertStatus(item, 'muted')">كتم</button>
+            <button type="button" class="btn btn-sm btn-outline" (click)="setAlertStatus(item, 'active')">تفعيل</button>
+          </div>
+        </article>
+      }
+    </section>
+  }
+</div>

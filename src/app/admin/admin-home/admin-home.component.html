@@ -1,0 +1,98 @@
+<div class="page-shell dashboard-page" dir="rtl">
+  <app-page-header
+    eyebrow="نظرة تشغيلية"
+    title="مرحباً بك في لوحة التحكم"
+    description="تابع أداء الرحلات والحجوزات وأهم مؤشرات الشركة من مساحة عمل موحّدة."
+  >
+    <span class="data-freshness"><i class="fas fa-circle"></i> البيانات الحالية</span>
+  </app-page-header>
+
+  <section class="metric-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="مؤشرات الأداء">
+    <app-stat-card label="أرباح اليوم" [value]="formatEarnings()" suffix="ل.س" description="الإيراد المسجل لهذا اليوم" iconClass="fas fa-wallet" tone="primary" [highlighted]="true" />
+    <app-stat-card label="إجمالي الركاب" [value]="stateService.summaryStats().totalPassengers.toLocaleString()" description="راكب ضمن الحجوزات" iconClass="fas fa-users" tone="info" />
+    <app-stat-card label="إجمالي الرحلات" [value]="stateService.summaryStats().totalTrips.toLocaleString()" description="رحلة مسجلة في النظام" iconClass="fas fa-route" tone="warning" />
+    <app-stat-card label="التنبيهات" [value]="stateService.notificationCount().toLocaleString()" description="تنبيه يحتاج المراجعة" iconClass="fas fa-bell" tone="neutral" />
+  </section>
+
+  <div class="dashboard-primary-grid">
+    <section class="content-card analytics-panel">
+      <header class="section-card__header">
+        <div><h2>نشاط الرحلات الأسبوعي</h2><p>مقارنة عدد الرحلات المسجلة خلال أيام الأسبوع</p></div>
+        <span class="section-card__tag"><i class="fas fa-chart-column"></i> أسبوعي</span>
+      </header>
+
+      <div class="chart-grid" role="img" aria-label="مخطط نشاط الرحلات الأسبوعي">
+        @for (bar of chartBars(); track bar.day) {
+          <div class="chart-column">
+            <div class="chart-column__track">
+              <div class="chart-bar tooltip tooltip-top" [style.height.%]="bar.height" [attr.data-tip]="bar.value + ' رحلة'" [style.min-height.px]="8"></div>
+            </div>
+            <span>{{ dayLabel(bar.day) }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <aside class="content-card operations-panel">
+      <header class="section-card__header">
+        <div><h2>متابعة التشغيل</h2><p>وصول مباشر إلى المهام اليومية</p></div>
+      </header>
+
+      <nav class="operations-list" aria-label="اختصارات التشغيل">
+        <a routerLink="/admin/bookings" class="operations-item">
+          <span class="operations-item__icon"><i class="fas fa-calendar-check"></i></span>
+          <span><strong>مراجعة الحجوزات</strong><small>{{ stateService.totalBookings() }} حجز مسجل</small></span>
+          <i class="fas fa-chevron-left operations-item__arrow"></i>
+        </a>
+        <a routerLink="/admin/trips" class="operations-item">
+          <span class="operations-item__icon operations-item__icon--warning"><i class="fas fa-route"></i></span>
+          <span><strong>إدارة الرحلات</strong><small>{{ stateService.summaryStats().totalTrips.toLocaleString() }} رحلة</small></span>
+          <i class="fas fa-chevron-left operations-item__arrow"></i>
+        </a>
+        <a routerLink="/admin/reports" class="operations-item">
+          <span class="operations-item__icon operations-item__icon--info"><i class="fas fa-chart-pie"></i></span>
+          <span><strong>التقارير المالية</strong><small>تفاصيل الدخل والأداء</small></span>
+          <i class="fas fa-chevron-left operations-item__arrow"></i>
+        </a>
+      </nav>
+    </aside>
+  </div>
+
+  <section class="table-shell dashboard-table">
+    <div class="table-shell__header">
+      <div><h2 class="table-shell__title">أحدث الحجوزات</h2><p class="table-shell__description">آخر الحجوزات المسجلة في النظام</p></div>
+      <span class="table-shell__count">{{ stateService.totalBookings() }} حجز</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead><tr><th>اسم الراكب</th><th>الوجهة</th><th>التاريخ</th><th>الحالة</th></tr></thead>
+        <tbody>
+          @for (booking of stateService.paginatedBookings(); track booking.id) {
+            <tr>
+              <td class="font-semibold">{{ booking.passenger.name }}</td>
+              <td>{{ booking.trip.plan }}</td>
+              <td>{{ booking.trip.tripDate }}</td>
+              <td><span class="badge" [ngClass]="statusBadgeClass(booking.status)">{{ statusText(booking.status) }}</span></td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty-table-cell"><div class="loading-state"><i class="fas fa-calendar-xmark text-2xl text-base-content/25"></i><span>لا توجد حجوزات لعرضها</span></div></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-shell__footer">
+      @if (stateService.totalBookings() > 0) {
+        <p class="table-results">عرض {{ ((stateService.currentPage() - 1) * stateService.itemsPerPage() + 1) }}-{{ Math.min(stateService.currentPage() * stateService.itemsPerPage(), stateService.totalBookings()) }} من {{ stateService.totalBookings() }}</p>
+      } @else { <p class="table-results">0 نتيجة</p> }
+      <div class="join">
+        <button class="join-item btn btn-sm" aria-label="الصفحة السابقة" [disabled]="stateService.currentPage() === 1" (click)="previousPage()"><i class="fas fa-chevron-right"></i></button>
+        @for (page of [].constructor(stateService.totalPages()); track $index) {
+          <button class="join-item btn btn-sm" [class.btn-active]="stateService.currentPage() === $index + 1" (click)="goToPage($index + 1)">{{ $index + 1 }}</button>
+        }
+        <button class="join-item btn btn-sm" aria-label="الصفحة التالية" [disabled]="stateService.currentPage() === stateService.totalPages()" (click)="nextPage()"><i class="fas fa-chevron-left"></i></button>
+      </div>
+    </div>
+  </section>
+</div>

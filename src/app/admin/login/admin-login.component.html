@@ -1,0 +1,102 @@
+<main class="login-shell" dir="rtl">
+  <section class="login-showcase" aria-label="سفر بلس">
+    <div class="login-showcase__brand">
+      <div class="login-showcase__logo-frame">
+        <img
+          class="login-showcase__logo"
+          src="/assets/brand/safar-plus-logo.png"
+          alt="سفر بلس"
+          width="1200"
+          height="738"
+        />
+      </div>
+      <p class="login-showcase__brand-caption">منصة إدارة النقل الذكي</p>
+    </div>
+
+    <div class="login-showcase__content">
+      <p class="login-showcase__eyebrow mb-4 text-xs font-bold">إدارة أبسط. تشغيل أذكى.</p>
+      <h1>كل عمليات النقل<br />في مساحة واحدة.</h1>
+      <p>تابع الرحلات والحجوزات والمركبات والتقارير من لوحة عمل موحّدة صُممت لفرق التشغيل الحديثة.</p>
+    </div>
+
+    <p class="relative z-10 text-xs text-white/40">منصة سفر بلس لإدارة أعمال النقل</p>
+  </section>
+
+  <section class="login-panel">
+    <div class="login-card">
+      <div class="login-card__brand lg:hidden">
+        <img
+          class="login-card__logo"
+          src="/assets/brand/safar-plus-logo.png"
+          alt="سفر بلس"
+          width="1200"
+          height="738"
+        />
+        <p>إدارة النقل الذكي</p>
+      </div>
+
+      <div class="login-card__heading">
+        <p class="mb-2 text-xs font-bold text-primary">مرحباً بعودتك</p>
+        <h2>تسجيل الدخول</h2>
+        <p>أدخل بيانات حسابك للوصول إلى لوحة الإدارة.</p>
+      </div>
+
+      @if (errorMessage()) {
+        <div role="alert" class="alert alert-error mb-5">
+          <i class="fas fa-circle-exclamation"></i>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <form (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
+        <label class="form-control" for="admin-login-email">
+          <span class="label-text mb-2">البريد الإلكتروني أو رقم الجوال</span>
+          <div class="relative">
+            <i class="fas fa-envelope absolute start-3 top-1/2 z-10 -translate-y-1/2 text-sm text-base-content/35"></i>
+            <input
+              id="admin-login-email"
+              type="text"
+              name="login"
+              class="input input-bordered w-full ps-10"
+              autocomplete="username"
+              [(ngModel)]="login"
+              [disabled]="isSubmitting()"
+              placeholder="name@example.com"
+              required
+            />
+          </div>
+        </label>
+
+        <label class="form-control" for="admin-login-password">
+          <span class="label-text mb-2">كلمة المرور</span>
+          <div class="relative">
+            <i class="fas fa-lock absolute start-3 top-1/2 z-10 -translate-y-1/2 text-sm text-base-content/35"></i>
+            <input
+              id="admin-login-password"
+              type="password"
+              name="password"
+              class="input input-bordered w-full ps-10"
+              autocomplete="current-password"
+              [(ngModel)]="password"
+              [disabled]="isSubmitting()"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+        </label>
+
+        <button type="submit" class="btn btn-primary mt-2 w-full" [disabled]="isSubmitting()">
+          @if (isSubmitting()) {
+            <span class="loading loading-spinner loading-sm"></span>
+            جارٍ تسجيل الدخول
+          } @else {
+            <span>دخول إلى لوحة الإدارة</span>
+            <i class="fas fa-arrow-left"></i>
+          }
+        </button>
+      </form>
+
+      <p class="mt-6 text-center text-[0.7rem] text-base-content/45">الوصول مخصص للمستخدمين المصرح لهم فقط</p>
+    </div>
+  </section>
+</main>
